@@ -14,9 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Important: Run "make" to regenerate code after modifying this file
+
 package v1alpha1
 
 import (
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -25,17 +28,39 @@ import (
 
 // DatabaseSpec defines the desired state of Database
 type DatabaseSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
 
-	// Foo is an example field of Database. Edit Database_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	// +kubebuilder:validation:Format:=hostname
+	Host string `json:"host"`
+	// +kubebuilder:default:=3306
+	// +kubebuilder:validation:Minimum=1024
+	// +kubebuilder:validation:Maximum=65535
+	// +kubebuilder:validation:Optional
+	Port int32 `json:"port"`
+	// +kubebuilder:validation:Optional
+	// +nullable
+	AdminUser *SecretKeySource `json:"adminUser,omitEmpty"`
+	// +kubebuilder:validation:Optional
+	// +nullable
+	AdminPassword *SecretKeySource `json:"adminPassword,omitEmpty"`
+	Name          string           `json:"name"`
+	// +kubebuilder:default:=utf8mb4
+	// +kubebuilder:validation:Optional
+	CharacterSet string `json:"characterSet"`
+	// +kubebuilder:default:=utf8mb4_general_ci
+	// +kubebuilder:validation:Optional
+	Collate string `json:"collate"`
+}
+
+type SecretKeySource struct {
+	SecretKeyRef v1.SecretKeySelector `json:"secretKeyRef"`
 }
 
 // DatabaseStatus defines the observed state of Database
 type DatabaseStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	// Timestamp identifying when the database was successfully created
+	CreationTime metav1.Time `json:"creationTime,omitEmpty"`
+	// Indicates current state, phase or issue
+	Message string `json:"message"`
 }
 
 // +kubebuilder:object:root=true

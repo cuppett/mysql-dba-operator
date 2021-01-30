@@ -3,5 +3,13 @@ kind: Database
 metadata:
   name: database-sample
 spec:
-  # Add fields here
-  foo: bar
+  host: 172.25.199.214.xip.io
+  adminUser:
+    secretKeyRef:
+      name: my-secret
+      key: username
+  adminPassword:
+    secretKeyRef:
+      name: my-secret
+      key: password
+  name: test
