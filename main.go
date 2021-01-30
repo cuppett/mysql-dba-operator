@@ -90,10 +90,6 @@ func main() {
 		setupLog.Error(err, "unable to create webhook", "webhook", "Database")
 		os.Exit(1)
 	}
-	if err = (&mysqlv1alpha1.Database{}).SetupWebhookWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create webhook", "webhook", "Database")
-		os.Exit(1)
-	}
 	// +kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("health", healthz.Ping); err != nil {
