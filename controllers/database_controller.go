@@ -35,7 +35,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -46,9 +45,8 @@ const (
 // DatabaseReconciler reconciles a Database object
 type DatabaseReconciler struct {
 	client.Client
-	Log     logr.Logger
-	Scheme  *runtime.Scheme
-	Mutexes map[string]sync.RWMutex
+	Log    logr.Logger
+	Scheme *runtime.Scheme
 }
 
 // +kubebuilder:rbac:groups=mysql.brightframe.com,resources=databases,verbs=get;list;watch;create;update;patch;delete
