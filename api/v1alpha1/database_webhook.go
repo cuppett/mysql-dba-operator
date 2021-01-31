@@ -63,12 +63,6 @@ func (r *Database) ValidateUpdate(old runtime.Object) error {
 	if r.Spec.Name != oldDatabase.Spec.Name {
 		return &validationError{"Name not allowed to be changed"}
 	}
-	if r.Spec.Collate != oldDatabase.Spec.Collate {
-		return &validationError{"Database collation not allowed to be changed"}
-	}
-	if r.Spec.CharacterSet != oldDatabase.Spec.CharacterSet {
-		return &validationError{"Database collation not allowed to be changed"}
-	}
 
 	return nil
 }

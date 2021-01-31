@@ -43,12 +43,10 @@ type DatabaseSpec struct {
 	// +nullable
 	AdminPassword *SecretKeySource `json:"adminPassword,omitEmpty"`
 	Name          string           `json:"name"`
-	// +kubebuilder:default:=utf8mb4
 	// +kubebuilder:validation:Optional
-	CharacterSet string `json:"characterSet"`
-	// +kubebuilder:default:=utf8mb4_general_ci
+	CharacterSet string `json:"characterSet,omitEmpty"`
 	// +kubebuilder:validation:Optional
-	Collate string `json:"collate"`
+	Collate string `json:"collate,omitEmpty"`
 }
 
 type SecretKeySource struct {
@@ -58,9 +56,19 @@ type SecretKeySource struct {
 // DatabaseStatus defines the observed state of Database
 type DatabaseStatus struct {
 	// Timestamp identifying when the database was successfully created
+	// +kubebuilder:validation:Optional
+	// +nullable
 	CreationTime metav1.Time `json:"creationTime,omitEmpty"`
+	// +kubebuilder:validation:Optional
+	// +nullable
+	SyncTime metav1.Time `json:"syncTime,omitEmpty"`
+	// +kubebuilder:validation:Optional
+	CharacterSet string `json:"defaultCharacterSet,omitEmpty"`
+	// +kubebuilder:validation:Optional
+	Collate string `json:"defaultCollation,omitEmpty"`
 	// Indicates current state, phase or issue
-	Message string `json:"message"`
+	// +kubebuilder:validation:Optional
+	Message string `json:"message,omitEmpty"`
 }
 
 // +kubebuilder:object:root=true

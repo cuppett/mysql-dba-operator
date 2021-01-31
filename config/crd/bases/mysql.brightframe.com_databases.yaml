@@ -85,10 +85,8 @@ spec:
                 - secretKeyRef
                 type: object
               characterSet:
-                default: utf8mb4
                 type: string
               collate:
-                default: utf8mb4_general_ci
                 type: string
               host:
                 format: hostname
@@ -112,13 +110,19 @@ spec:
                 description: Timestamp identifying when the database was successfully
                   created
                 format: date-time
+                nullable: true
+                type: string
+              defaultCharacterSet:
+                type: string
+              defaultCollation:
                 type: string
               message:
                 description: Indicates current state, phase or issue
                 type: string
-            required:
-            - creationTime
-            - message
+              syncTime:
+                format: date-time
+                nullable: true
+                type: string
             type: object
         type: object
     served: true
