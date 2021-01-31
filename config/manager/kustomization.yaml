@@ -11,9 +11,10 @@ configMapGenerator:
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 images:
-- digest: sha256:6492028019ee5e120f7a4fa23bb122eaa7472d4a79b2ccf191861d8468f81a6a
+- newTag: latest
   name: controller
   newName: 072298089782.dkr.ecr.us-east-2.amazonaws.com/mysql-database-operator
+
 # Uncomment the below to use a private pull secret
 #patches:
 #- path: pull_secret.yaml
