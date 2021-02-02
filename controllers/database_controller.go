@@ -85,7 +85,7 @@ func (r *DatabaseReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	// Establish the database connection
-	db, err := r.getDatabaseConnection(instance)
+	db, err := r.getDatabaseConnection(ctx, instance)
 	if err != nil {
 		return ctrl.Result{}, err
 	} else {
@@ -107,7 +107,7 @@ func (r *DatabaseReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 			// Remove stacksFinalizer. Once all finalizers have been
 			// removed, the object will be deleted.
 			controllerutil.RemoveFinalizer(instance, dbFinalizer)
-			err := r.Update(context.TODO(), instance)
+			err := r.Update(ctx, instance)
 			if err != nil {
 				log.Error(err, "Failure removing the finalizer.")
 				return ctrl.Result{}, err
@@ -120,15 +120,15 @@ func (r *DatabaseReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	// Add finalizer for this CR
 	if !controllerutil.ContainsFinalizer(instance, dbFinalizer) {
 		controllerutil.AddFinalizer(instance, dbFinalizer)
-		err = r.Update(context.TODO(), instance)
+		err = r.Update(ctx, instance)
 		if err != nil {
 			log.Error(err, "Failure adding the finalizer.")
 		}
 	} else {
-		exists, err := r.databaseExists(instance, db)
+		exists, err := r.databaseExists(ctx, instance, db)
 
 		if !exists {
-			_, err = r.databaseCreate(instance, db)
+			_, err = r.databaseCreate(ctx, instance, db)
 			if err != nil {
 				return ctrl.Result{}, err
 			}
@@ -143,7 +143,7 @@ func (r *DatabaseReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	return ctrl.Result{}, nil
 }
 
-func (r *DatabaseReconciler) databaseExists(m *mysqlv1alpha1.Database, db *sql.DB) (bool, error) {
+func (r *DatabaseReconciler) databaseExists(ctx context.Context, m *mysqlv1alpha1.Database, db *sql.DB) (bool, error) {
 
 	var collate string
 	var characterSet string
@@ -173,7 +173,7 @@ func (r *DatabaseReconciler) databaseExists(m *mysqlv1alpha1.Database, db *sql.D
 	}
 	if difference {
 		m.Status.SyncTime = metav1.NewTime(time.Now())
-		err = r.Status().Update(context.TODO(), m)
+		err = r.Status().Update(ctx, m)
 		if err != nil {
 			log.Error(err, "Failure recording difference.")
 		}
@@ -220,7 +220,7 @@ func (r *DatabaseReconciler) databaseUpdate(m *mysqlv1alpha1.Database, db *sql.D
 	return true, nil
 }
 
-func (r *DatabaseReconciler) databaseCreate(m *mysqlv1alpha1.Database, db *sql.DB) (bool, error) {
+func (r *DatabaseReconciler) databaseCreate(ctx context.Context, m *mysqlv1alpha1.Database, db *sql.DB) (bool, error) {
 
 	var createQuery string
 
@@ -240,12 +240,12 @@ func (r *DatabaseReconciler) databaseCreate(m *mysqlv1alpha1.Database, db *sql.D
 		return false, err
 	}
 
-	exists, err := r.databaseExists(m, db)
+	exists, err := r.databaseExists(ctx, m, db)
 	if exists {
 		r.Log.Info("Successfully created database", "Host", m.Spec.Host, "Name", m.Spec.Name)
 		m.Status.CreationTime = metav1.NewTime(time.Now())
 		m.Status.Message = "Created database"
-		err = r.Status().Update(context.TODO(), m)
+		err = r.Status().Update(ctx, m)
 		if err != nil {
 			log.Error(err, "Failure recording created database.")
 		}
@@ -275,7 +275,7 @@ func finalizeDatabase(log logr.Logger, m *mysqlv1alpha1.Database, db *sql.DB) er
 }
 
 // This function handles setting up all the database stuff so we're ready to talk to it.
-func (r *DatabaseReconciler) getDatabaseConnection(instance *mysqlv1alpha1.Database) (*sql.DB, error) {
+func (r *DatabaseReconciler) getDatabaseConnection(ctx context.Context, instance *mysqlv1alpha1.Database) (*sql.DB, error) {
 	var err error
 	var dbConfig mysql.Config
 
@@ -287,7 +287,7 @@ func (r *DatabaseReconciler) getDatabaseConnection(instance *mysqlv1alpha1.Datab
 	// Default the admin user to root if it was not specified by the definition
 	dbConfig.User = "root"
 	if instance.Spec.AdminUser != nil {
-		dbConfig.User, err = getSecretRefValue(r.Client, instance.Namespace, &instance.Spec.AdminUser.SecretKeyRef)
+		dbConfig.User, err = getSecretRefValue(ctx, r.Client, instance.Namespace, &instance.Spec.AdminUser.SecretKeyRef)
 		if err != nil {
 			return nil, err
 		}
@@ -295,7 +295,7 @@ func (r *DatabaseReconciler) getDatabaseConnection(instance *mysqlv1alpha1.Datab
 	// Default the admin password to empty if it was not specified by the definition
 	dbConfig.Passwd = ""
 	if instance.Spec.AdminPassword != nil {
-		dbConfig.Passwd, err = getSecretRefValue(r.Client, instance.Namespace, &instance.Spec.AdminPassword.SecretKeyRef)
+		dbConfig.Passwd, err = getSecretRefValue(ctx, r.Client, instance.Namespace, &instance.Spec.AdminPassword.SecretKeyRef)
 		if err != nil {
 			return nil, err
 		}
@@ -319,7 +319,7 @@ func (r *DatabaseReconciler) getDatabaseConnection(instance *mysqlv1alpha1.Datab
 }
 
 // getSecretRefValue returns the value of a secret in the supplied namespace
-func getSecretRefValue(client client.Client, namespace string, secretSelector *v1.SecretKeySelector) (string, error) {
+func getSecretRefValue(ctx context.Context, client client.Client, namespace string, secretSelector *v1.SecretKeySelector) (string, error) {
 
 	var namespacedName types.NamespacedName
 
@@ -328,7 +328,7 @@ func getSecretRefValue(client client.Client, namespace string, secretSelector *v
 
 	// Fetch the Stack instance
 	secret := &v1.Secret{}
-	err := client.Get(context.TODO(), namespacedName, secret)
+	err := client.Get(ctx, namespacedName, secret)
 	if err != nil {
 		return "", err
 	}
