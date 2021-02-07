@@ -65,6 +65,9 @@ type DatabaseUserStatus struct {
 	// Indicates current state, phase or issue
 	// +kubebuilder:validation:Optional
 	Message string `json:"message,omitEmpty"`
+	// +kubebuilder:validation:Optional
+	// +nullable
+	DatabaseList []DatabasePermission `json:"databasePermissions,omitEmpty"`
 	// Identifies the current permissions of the user as indicated by SHOW GRANTS
 	// +kubebuilder:validation:Optional
 	// +nullable
@@ -94,4 +97,20 @@ type DatabaseUserList struct {
 
 func init() {
 	SchemeBuilder.Register(&DatabaseUser{}, &DatabaseUserList{})
+}
+
+func (r *DatabaseUser) PermissionListEqual() bool {
+	// Always has GRANT USAGE as the first one. Only when we have something more complicated than
+	if len(r.Status.Grants)-1 != len(r.Spec.DatabaseList) {
+		return false
+	}
+	if len(r.Spec.DatabaseList) != len(r.Status.DatabaseList) {
+		return false
+	}
+	for i, elem := range r.Spec.DatabaseList {
+		if elem.Name != r.Status.DatabaseList[i].Name {
+			return false
+		}
+	}
+	return true
 }

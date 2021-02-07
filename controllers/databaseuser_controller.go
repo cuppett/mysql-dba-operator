@@ -147,15 +147,24 @@ func (r *DatabaseUserReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			if err != nil {
 				return ctrl.Result{}, err
 			}
+			loop.instance.Status.CreationTime = metav1.NewTime(time.Now())
+			loop.instance.Status.Message = "Created user"
+			err = r.Status().Update(ctx, loop.instance)
 		} else {
-			err = r.userUpdate(ctx, &loop)
+			updated, err := r.userUpdate(ctx, &loop)
 			if err != nil {
 				return ctrl.Result{}, err
 			}
+			if updated {
+				loop.instance.Status.SyncTime = metav1.NewTime(time.Now())
+				err = r.Status().Update(ctx, loop.instance)
+			}
+		}
+		if err != nil {
+			r.Log.Error(err, "Failure to reconcile user.")
 		}
 	}
-
-	return ctrl.Result{}, nil
+	return ctrl.Result{}, err
 }
 
 func (r *DatabaseUserReconciler) userExists(loop *UserLoopContext) (bool, error) {
@@ -173,12 +182,16 @@ func (r *DatabaseUserReconciler) userExists(loop *UserLoopContext) (bool, error)
 	result := findStmt.QueryRow(loop.instance.Spec.Username)
 	err = result.Scan(&exists)
 	if err != nil {
-		r.Log.Info("User does not exist", "Host", loop.adminConnection.Spec.Host, "Name", loop.instance.Spec.Username)
+		r.Log.Error(err, "Failed retrieving user", "Host", loop.adminConnection.Spec.Host, "Name", loop.instance.Spec.Username)
 		return false, nil
 	}
 
-	r.Log.Info("Successfully retrieved user", "Host", loop.adminConnection.Spec.Host,
-		"Name", loop.instance.Spec.Username)
+	if exists {
+		r.Log.Info("Successfully retrieved user", "Host", loop.adminConnection.Spec.Host,
+			"Name", loop.instance.Spec.Username)
+	} else {
+		r.Log.Info("User does not exist", "Host", loop.adminConnection.Spec.Host, "Name", loop.instance.Spec.Username)
+	}
 	return exists, nil
 }
 
@@ -199,34 +212,22 @@ func (r *DatabaseUserReconciler) userCreate(ctx context.Context, loop *UserLoopC
 	if err != nil {
 		return err
 	}
+	r.Log.Info("Successfully created user", "Host", loop.adminConnection.Spec.Host,
+		"Name", loop.instance.Spec.Username)
 
-	exists, err := r.userExists(loop)
-	if exists {
-		r.Log.Info("Successfully created user", "Host", loop.adminConnection.Spec.Host,
-			"Name", loop.instance.Spec.Username)
-		loop.instance.Status.CreationTime = metav1.NewTime(time.Now())
-		loop.instance.Status.Message = "Created user"
-		err = r.Status().Update(ctx, loop.instance)
-		if err != nil {
-			r.Log.Error(err, "Failure recording created user.")
-		}
-	} else if err != nil {
-		return err
-	}
-
-	// Grant the user permissions to the database.
-	err = r.grant(ctx, loop)
+	_, err = r.grant(loop)
 	return err
 }
 
-func (r *DatabaseUserReconciler) userUpdate(ctx context.Context, loop *UserLoopContext) error {
+func (r *DatabaseUserReconciler) userUpdate(ctx context.Context, loop *UserLoopContext) (bool, error) {
 
 	alterQuery := "ALTER USER '" + mysqlv1alpha1.Escape(loop.instance.Spec.Username) + "'"
 	params := make([]interface{}, 0)
 
+	// Determining if we need to update the user wrt their authentication
 	userDetails, err := r.userDetailString(ctx, loop, true)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	if userDetails != "" {
@@ -234,27 +235,31 @@ func (r *DatabaseUserReconciler) userUpdate(ctx context.Context, loop *UserLoopC
 
 		err = r.runStmt(loop, alterQuery, params...)
 		if err != nil {
-			return err
+			return false, err
 		}
+		r.Log.Info("Successfully updated user", "Host", loop.adminConnection.Spec.Host,
+			"Name", loop.instance.Spec.Username)
 
-		exists, err := r.userExists(loop)
-		if exists {
-			r.Log.Info("Successfully updated user", "Host", loop.adminConnection.Spec.Host,
-				"Name", loop.instance.Spec.Username)
-			loop.instance.Status.SyncTime = metav1.NewTime(time.Now())
-			loop.instance.Status.Message = "Altered user."
-			err = r.Status().Update(ctx, loop.instance)
-			if err != nil {
-				r.Log.Error(err, "Failure recording created database.")
-			}
-		} else if err != nil {
-			return err
-		}
+		return true, nil
 	}
 
-	//err = r.revoke(ctx, loop)
-	//if err == nil { err = r.grant(ctx, loop) }
-	return err
+	// Determining if we have a permissions thing and need to do something there.
+	permsDiff, err := r.grantStatusUpdate(loop, false)
+	// Always has GRANT USAGE as the first one. Only when we have something more complicated than
+	if err == nil && (permsDiff || !loop.instance.PermissionListEqual()) {
+		permsDiff = true
+		r.Log.Info("Permissions difference.", "Host", loop.adminConnection.Spec.Host,
+			"Name", loop.instance.Spec.Username)
+		// Always has GRANT USAGE as the first one. Only when we have something more complicated than
+		// that do we need to revoke it.
+		if len(loop.instance.Status.Grants) > 1 {
+			_, err = r.revoke(loop)
+		}
+		if err == nil {
+			_, err = r.grant(loop)
+		}
+	}
+	return permsDiff, err
 }
 
 func (r *DatabaseUserReconciler) userDetailString(ctx context.Context, loop *UserLoopContext, update bool) (string, error) {
@@ -276,6 +281,7 @@ func (r *DatabaseUserReconciler) userDetailString(ctx context.Context, loop *Use
 			authString = mysqlv1alpha1.Escape(authString)
 		}
 
+		// TODO: We should validate the authplugin against those actually installed in the database (webhook?)
 		if loop.instance.Spec.Identification.AuthPlugin != "" {
 			queryFragment += " IDENTIFIED WITH " + loop.instance.Spec.Identification.AuthPlugin
 			if authString != "" {
@@ -303,7 +309,7 @@ func (r *DatabaseUserReconciler) userDetailString(ctx context.Context, loop *Use
 	return queryFragment, nil
 }
 
-func (r *DatabaseUserReconciler) revoke(ctx context.Context, loop *UserLoopContext) error {
+func (r *DatabaseUserReconciler) revoke(loop *UserLoopContext) (bool, error) {
 
 	var err error
 	revokeQuery := "REVOKE ALL PRIVILEGES, GRANT OPTION FROM '" + mysqlv1alpha1.Escape(loop.instance.Spec.Username) + "'"
@@ -313,13 +319,13 @@ func (r *DatabaseUserReconciler) revoke(ctx context.Context, loop *UserLoopConte
 		r.Log.Error(err, "Failed to revoke user permissions", "Host",
 			loop.adminConnection.Spec.Host, "Name", loop.instance.Spec.Username, "Query",
 			revokeQuery)
-		return err
+		return false, err
 	}
-
-	return r.grantStatusUpdate(ctx, loop)
+	loop.instance.Status.DatabaseList = make([]mysqlv1alpha1.DatabasePermission, 0)
+	return r.grantStatusUpdate(loop, true)
 }
 
-func (r *DatabaseUserReconciler) grant(ctx context.Context, loop *UserLoopContext) error {
+func (r *DatabaseUserReconciler) grant(loop *UserLoopContext) (bool, error) {
 
 	var err error
 	var grantQuery string
@@ -331,44 +337,58 @@ func (r *DatabaseUserReconciler) grant(ctx context.Context, loop *UserLoopContex
 			r.Log.Error(err, "Failed to grant user permissions", "Host",
 				loop.adminConnection.Spec.Host, "Name", loop.instance.Spec.Username, "Query",
 				grantQuery)
-			return err
+			return false, err
 		}
 	}
 
-	return r.grantStatusUpdate(ctx, loop)
+	loop.instance.Status.DatabaseList = loop.instance.Spec.DatabaseList
+	return r.grantStatusUpdate(loop, false)
 }
 
-func (r *DatabaseUserReconciler) grantStatusUpdate(ctx context.Context, loop *UserLoopContext) error {
+/**
+ * Checking whether we need to reflect a newer set of grants back to the model
+ * Compares the two sets of grants (status + database). The lists should be relatively small,
+ * so we'll bruteforce it.
+ * @return bool If the grants have been changed.
+ * @return error In the event of a failure.
+ */
+func (r *DatabaseUserReconciler) grantStatusUpdate(loop *UserLoopContext, empty bool) (bool, error) {
 
 	var grant string
+	var update bool
+
 	showQuery := "SHOW GRANTS FOR '" + mysqlv1alpha1.Escape(loop.instance.Spec.Username) + "'"
+
+	if empty {
+		// Empty out the list. We're loading it fresh.
+		loop.instance.Status.Grants = make([]string, 0)
+	}
 
 	rows, err := loop.db.Query(showQuery)
 	if err != nil {
 		r.Log.Error(err, "Failed to get user grants", "Host",
 			loop.adminConnection.Spec.Host, "Name", loop.instance.Spec.Username, "Query",
 			showQuery)
-		return err
+		return false, err
 	}
 	defer rows.Close()
 
-	loop.instance.Status.Grants = make([]string, 0)
 	for rows.Next() {
 		if err := rows.Scan(&grant); err != nil {
 			r.Log.Error(err, "Failure retrieving grant row from SHOW GRANT", "Host",
 				loop.adminConnection.Spec.Host, "Name", loop.instance.Spec.Username, "Query",
 				showQuery)
+			return false, err
 		}
-		loop.instance.Status.Grants = append(loop.instance.Status.Grants, grant)
-	}
+		if !contains(loop.instance.Status.Grants, grant) {
+			r.Log.Info("Existing grants do not contain this one.", "Grant", grant, "Host",
+				loop.adminConnection.Spec.Host, "Name", loop.instance.Spec.Username)
+			update = true
+			loop.instance.Status.Grants = append(loop.instance.Status.Grants, grant)
+		}
 
-	loop.instance.Status.SyncTime = metav1.NewTime(time.Now())
-	err = r.Status().Update(ctx, loop.instance)
-	if err != nil {
-		r.Log.Error(err, "Failure updating status for DatabaseUser")
 	}
-
-	return nil
+	return update, nil
 }
 
 func (r *DatabaseUserReconciler) runStmt(loop *UserLoopContext, query string, args ...interface{}) error {
@@ -399,4 +419,14 @@ func (r *DatabaseUserReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&mysqlv1alpha1.DatabaseUser{}).
 		Complete(r)
+}
+
+// Contains tells whether a contains x.
+func contains(a []string, x string) bool {
+	for _, n := range a {
+		if x == n {
+			return true
+		}
+	}
+	return false
 }

@@ -114,6 +114,16 @@ spec:
                 format: date-time
                 nullable: true
                 type: string
+              databasePermissions:
+                items:
+                  properties:
+                    databaseName:
+                      type: string
+                  required:
+                  - databaseName
+                  type: object
+                nullable: true
+                type: array
               grants:
                 description: Identifies the current permissions of the user as indicated
                   by SHOW GRANTS

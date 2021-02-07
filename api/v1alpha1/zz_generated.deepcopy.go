@@ -336,6 +336,11 @@ func (in *DatabaseUserStatus) DeepCopyInto(out *DatabaseUserStatus) {
 	*out = *in
 	in.CreationTime.DeepCopyInto(&out.CreationTime)
 	in.SyncTime.DeepCopyInto(&out.SyncTime)
+	if in.DatabaseList != nil {
+		in, out := &in.DatabaseList, &out.DatabaseList
+		*out = make([]DatabasePermission, len(*in))
+		copy(*out, *in)
+	}
 	if in.Grants != nil {
 		in, out := &in.Grants, &out.Grants
 		*out = make([]string, len(*in))
