@@ -138,6 +138,12 @@ spec:
                 format: date-time
                 nullable: true
                 type: string
+              username:
+                description: Indicates the current username we're working with in
+                  the database.
+                type: string
+            required:
+            - username
             type: object
         type: object
     served: true

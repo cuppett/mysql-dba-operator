@@ -65,6 +65,8 @@ type DatabaseUserStatus struct {
 	// Indicates current state, phase or issue
 	// +kubebuilder:validation:Optional
 	Message string `json:"message,omitEmpty"`
+	// Indicates the current username we're working with in the database.
+	Username string `json:"username,omitEmpty"`
 	// +kubebuilder:validation:Optional
 	// +nullable
 	DatabaseList []DatabasePermission `json:"databasePermissions,omitEmpty"`
