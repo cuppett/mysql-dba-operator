@@ -11,7 +11,7 @@ configMapGenerator:
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 images:
-- newTag: latest
+- digest: sha256:bf351b1dc0b089a7c539015ded959490e63ef96eae515900b491a5325483e077
   name: controller
   newName: 072298089782.dkr.ecr.us-east-2.amazonaws.com/mysql-database-operator
 

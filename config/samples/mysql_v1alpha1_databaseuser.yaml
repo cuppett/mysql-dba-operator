@@ -1,0 +1,14 @@
+apiVersion: mysql.brightframe.com/v1alpha1
+kind: DatabaseUser
+metadata:
+  name: cuppett
+spec:
+  adminConnection:
+    namespace: brightframe
+    name: db1
+  username: cuppett
+  identification:
+    authString:
+      secretKeyRef:
+        name: db-password
+        key: password

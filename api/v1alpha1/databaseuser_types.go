@@ -14,29 +14,43 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Important: Run "make" to regenerate code after modifying this file
-
 package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
-// DatabaseSpec defines the desired state of Database
-type DatabaseSpec struct {
+// DatabaseUserSpec defines the desired state of DatabaseUser
+type DatabaseUserSpec struct {
 	AdminConnection AdminConnectionRef `json:"adminConnection"`
-	Name            string             `json:"name"`
+	// TODO: Block or allow the rename of a user (currently would just CREATE new one if changed)
+	Username string `json:"username"`
 	// +kubebuilder:validation:Optional
-	CharacterSet string `json:"characterSet,omitEmpty"`
-	// +kubebuilder:validation:Optional
-	Collate string `json:"collate,omitEmpty"`
+	// +nullable
+	Identification *Identification `json:"identification,omitEmpty"`
 }
 
-// DatabaseStatus defines the observed state of Database
-type DatabaseStatus struct {
+type DatabasePermission struct {
+	Name string `json:"databaseName"`
+}
+
+type Identification struct {
+	// Relates to auth_plugin, See: MySQL CREATE USER
+	// +kubebuilder:validation:Optional
+	AuthPlugin string `json:"authPlugin"`
+	// Relates to auth_string, See: MySQL CREATE USER
+	// TODO: We should watch this object, if it changes we can flush through a new password/token.
+	// +kubebuilder:validation:Optional
+	// +nullable
+	AuthString *SecretKeySource `json:"authString,omitEmpty"`
+	// Indicates stored authString is not already hashed by the auth_plugin
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default:=true
+	ClearText bool `json:"clearText"`
+}
+
+// DatabaseUserStatus defines the observed state of DatabaseUser
+type DatabaseUserStatus struct {
 	// Timestamp identifying when the database was successfully created
 	// +kubebuilder:validation:Optional
 	// +nullable
@@ -44,10 +58,6 @@ type DatabaseStatus struct {
 	// +kubebuilder:validation:Optional
 	// +nullable
 	SyncTime metav1.Time `json:"syncTime,omitEmpty"`
-	// +kubebuilder:validation:Optional
-	CharacterSet string `json:"defaultCharacterSet,omitEmpty"`
-	// +kubebuilder:validation:Optional
-	Collate string `json:"defaultCollation,omitEmpty"`
 	// Indicates current state, phase or issue
 	// +kubebuilder:validation:Optional
 	Message string `json:"message,omitEmpty"`
@@ -56,24 +66,24 @@ type DatabaseStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 
-// Database is the Schema for the databases API
-type Database struct {
+// DatabaseUser is the Schema for the databaseusers API
+type DatabaseUser struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   DatabaseSpec   `json:"spec,omitempty"`
-	Status DatabaseStatus `json:"status,omitempty"`
+	Spec   DatabaseUserSpec   `json:"spec,omitempty"`
+	Status DatabaseUserStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 
-// DatabaseList contains a list of Database
-type DatabaseList struct {
+// DatabaseUserList contains a list of DatabaseUser
+type DatabaseUserList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []Database `json:"items"`
+	Items           []DatabaseUser `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&Database{}, &DatabaseList{})
+	SchemeBuilder.Register(&DatabaseUser{}, &DatabaseUserList{})
 }

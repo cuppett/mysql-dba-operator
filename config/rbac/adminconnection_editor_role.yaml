@@ -1,0 +1,24 @@
+# permissions for end users to edit adminconnections.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: adminconnection-editor-role
+rules:
+- apiGroups:
+  - mysql.brightframe.com
+  resources:
+  - adminconnections
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - mysql.brightframe.com
+  resources:
+  - adminconnections/status
+  verbs:
+  - get

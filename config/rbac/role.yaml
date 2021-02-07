@@ -17,6 +17,32 @@ rules:
 - apiGroups:
   - mysql.brightframe.com
   resources:
+  - adminconnections
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - mysql.brightframe.com
+  resources:
+  - adminconnections/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - mysql.brightframe.com
+  resources:
+  - adminconnections/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - mysql.brightframe.com
+  resources:
   - databases
   verbs:
   - create
@@ -36,6 +62,32 @@ rules:
   - mysql.brightframe.com
   resources:
   - databases/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - mysql.brightframe.com
+  resources:
+  - databaseusers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - mysql.brightframe.com
+  resources:
+  - databaseusers/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - mysql.brightframe.com
+  resources:
+  - databaseusers/status
   verbs:
   - get
   - patch

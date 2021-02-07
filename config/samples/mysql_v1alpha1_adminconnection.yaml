@@ -1,0 +1,10 @@
+apiVersion: mysql.brightframe.com/v1alpha1
+kind: AdminConnection
+metadata:
+  name: db1
+spec:
+  host: 172.25.234.155.xip.io
+  adminPassword:
+    secretKeyRef:
+      name: mysql
+      key: database-root-password

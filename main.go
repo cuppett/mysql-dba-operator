@@ -90,6 +90,22 @@ func main() {
 		setupLog.Error(err, "unable to create webhook", "webhook", "Database")
 		os.Exit(1)
 	}
+	if err = (&controllers.DatabaseUserReconciler{
+		Client: mgr.GetClient(),
+		Log:    ctrl.Log.WithName("controllers").WithName("DatabaseUser"),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "DatabaseUser")
+		os.Exit(1)
+	}
+	if err = (&controllers.AdminConnectionReconciler{
+		Client: mgr.GetClient(),
+		Log:    ctrl.Log.WithName("controllers").WithName("AdminConnection"),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "AdminConnection")
+		os.Exit(1)
+	}
 	// +kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("health", healthz.Ping); err != nil {

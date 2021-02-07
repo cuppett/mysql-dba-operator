@@ -19,13 +19,10 @@ package controllers
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	mysqlv1alpha1 "github.com/brightframe/mysql-database-operator/api/v1alpha1"
 	"github.com/go-logr/logr"
-	"github.com/go-sql-driver/mysql"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/prometheus/common/log"
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -33,8 +30,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"strconv"
-	"strings"
 	"time"
 )
 
@@ -45,8 +40,9 @@ const (
 // DatabaseReconciler reconciles a Database object
 type DatabaseReconciler struct {
 	client.Client
-	Log    logr.Logger
-	Scheme *runtime.Scheme
+	Log             logr.Logger
+	Scheme          *runtime.Scheme
+	adminConnection *mysqlv1alpha1.AdminConnection
 }
 
 // +kubebuilder:rbac:groups=mysql.brightframe.com,resources=databases,verbs=get;list;watch;create;update;patch;delete
@@ -56,10 +52,6 @@ type DatabaseReconciler struct {
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the Database object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.7.0/pkg/reconcile
@@ -67,10 +59,9 @@ func (r *DatabaseReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	_ = r.Log.WithValues("database", req.NamespacedName)
 
-	// your logic here
-	// Fetch the Stack instance
+	// Fetch the Database instance
 	instance := &mysqlv1alpha1.Database{}
-	err := r.Client.Get(context.TODO(), req.NamespacedName, instance)
+	err := r.Client.Get(ctx, req.NamespacedName, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
@@ -84,8 +75,24 @@ func (r *DatabaseReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, err
 	}
 
+	r.adminConnection = &mysqlv1alpha1.AdminConnection{}
+	adminConnectionNamespacedName := types.NamespacedName{
+		Namespace: instance.Spec.AdminConnection.Namespace,
+		Name:      instance.Spec.AdminConnection.Name,
+	}
+	err = r.Client.Get(ctx, adminConnectionNamespacedName, r.adminConnection)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			r.Log.Info("AdminConnection resource not found. Object must be deleted")
+			return ctrl.Result{}, err
+		}
+		// Error reading the object - requeue the request.
+		r.Log.Error(err, "Failed to get AdminConnection")
+		return ctrl.Result{}, err
+	}
+
 	// Establish the database connection
-	db, err := r.getDatabaseConnection(ctx, instance)
+	db, err := r.adminConnection.GetDatabaseConnection(ctx, r.Client)
 	if err != nil {
 		return ctrl.Result{}, err
 	} else {
@@ -100,7 +107,7 @@ func (r *DatabaseReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 			// Run finalization logic for the database. If the
 			// finalization logic fails, don't remove the finalizer so
 			// that we can retry during the next reconciliation.
-			if err := finalizeDatabase(r.Log, instance, db); err != nil {
+			if err := r.finalizeDatabase(instance, db); err != nil {
 				return ctrl.Result{}, err
 			}
 
@@ -109,7 +116,7 @@ func (r *DatabaseReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 			controllerutil.RemoveFinalizer(instance, dbFinalizer)
 			err := r.Update(ctx, instance)
 			if err != nil {
-				log.Error(err, "Failure removing the finalizer.")
+				r.Log.Error(err, "Failure removing the finalizer.")
 				return ctrl.Result{}, err
 			}
 		}
@@ -122,7 +129,7 @@ func (r *DatabaseReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		controllerutil.AddFinalizer(instance, dbFinalizer)
 		err = r.Update(ctx, instance)
 		if err != nil {
-			log.Error(err, "Failure adding the finalizer.")
+			r.Log.Error(err, "Failure adding the finalizer.")
 		}
 	} else {
 		exists, err := r.databaseExists(ctx, instance, db)
@@ -150,18 +157,19 @@ func (r *DatabaseReconciler) databaseExists(ctx context.Context, m *mysqlv1alpha
 
 	findStmt, err := db.Prepare("SELECT DEFAULT_CHARACTER_SET_NAME, DEFAULT_COLLATION_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME=?")
 	if err != nil {
-		r.Log.Error(err, "Failed to prepare information schema query.", "Host", m.Spec.Host, "Database", m.Spec.Name)
+		r.Log.Error(err, "Failed to prepare information schema query.", "Host", r.adminConnection.Spec.Host, "Database", m.Spec.Name)
 		return false, err
 	}
+	defer findStmt.Close()
 
 	result := findStmt.QueryRow(m.Spec.Name)
 	err = result.Scan(&characterSet, &collate)
 	if err != nil {
-		r.Log.Info("Database does not exist", "Host", m.Spec.Host, "Name", m.Spec.Name)
+		r.Log.Info("Database does not exist", "Host", r.adminConnection.Spec.Host, "Name", m.Spec.Name)
 		return false, nil
 	}
 
-	r.Log.Info("Successfully retrieved database", "Host", m.Spec.Host, "Name", m.Spec.Name)
+	r.Log.Info("Successfully retrieved database", "Host", r.adminConnection.Spec.Host, "Name", m.Spec.Name)
 	difference := false
 	if m.Status.Collate == "" || m.Status.Collate != collate {
 		difference = true
@@ -175,7 +183,7 @@ func (r *DatabaseReconciler) databaseExists(ctx context.Context, m *mysqlv1alpha
 		m.Status.SyncTime = metav1.NewTime(time.Now())
 		err = r.Status().Update(ctx, m)
 		if err != nil {
-			log.Error(err, "Failure recording difference.")
+			r.Log.Error(err, "Failure recording difference.")
 		}
 	}
 
@@ -200,14 +208,14 @@ func (r *DatabaseReconciler) databaseUpdate(m *mysqlv1alpha1.Database, db *sql.D
 	}
 
 	if requireAlter {
-		r.Log.Info("Required to alter database", "Host", m.Spec.Host, "Name", m.Spec.Name, "Query", createQuery)
+		r.Log.Info("Required to alter database", "Host", r.adminConnection.Spec.Host, "Name", m.Spec.Name, "Query", createQuery)
 		_, err := db.Exec(createQuery)
 		if err != nil {
-			r.Log.Error(err, "Failed to alter database.", "Host", m.Spec.Host, "Name", m.Spec.Name)
+			r.Log.Error(err, "Failed to alter database.", "Host", r.adminConnection.Spec.Host, "Name", m.Spec.Name)
 			return false, err
 		}
 
-		r.Log.Info("Successfully altered database", "Host", m.Spec.Host, "Name", m.Spec.Name)
+		r.Log.Info("Successfully altered database", "Host", r.adminConnection.Spec.Host, "Name", m.Spec.Name)
 		m.Status.SyncTime = metav1.NewTime(time.Now())
 		m.Status.Message = "Altered database"
 		err = r.Status().Update(context.TODO(), m)
@@ -236,18 +244,18 @@ func (r *DatabaseReconciler) databaseCreate(ctx context.Context, m *mysqlv1alpha
 
 	_, err := db.Exec(createQuery)
 	if err != nil {
-		r.Log.Error(err, "Failed to create database.", "Host", m.Spec.Host, "Name", m.Spec.Name, "Query", createQuery)
+		r.Log.Error(err, "Failed to create database.", "Host", r.adminConnection.Spec.Host, "Name", m.Spec.Name, "Query", createQuery)
 		return false, err
 	}
 
 	exists, err := r.databaseExists(ctx, m, db)
 	if exists {
-		r.Log.Info("Successfully created database", "Host", m.Spec.Host, "Name", m.Spec.Name)
+		r.Log.Info("Successfully created database", "Host", r.adminConnection.Spec.Host, "Name", m.Spec.Name)
 		m.Status.CreationTime = metav1.NewTime(time.Now())
 		m.Status.Message = "Created database"
 		err = r.Status().Update(ctx, m)
 		if err != nil {
-			log.Error(err, "Failure recording created database.")
+			r.Log.Error(err, "Failure recording created database.")
 		}
 
 	} else if err != nil {
@@ -258,85 +266,14 @@ func (r *DatabaseReconciler) databaseCreate(ctx context.Context, m *mysqlv1alpha
 }
 
 // This is the finalizer which will DROP the database from the server losing all data.
-func finalizeDatabase(log logr.Logger, m *mysqlv1alpha1.Database, db *sql.DB) error {
+func (r *DatabaseReconciler) finalizeDatabase(m *mysqlv1alpha1.Database, db *sql.DB) error {
 
-	_, err := db.Exec("DROP DATABASE " + m.Spec.Name)
+	_, err := db.Exec("DROP DATABASE IF EXISTS " + m.Spec.Name)
 	if err != nil {
-		// Exclude the "database doesn't exist" error
-		if !strings.Contains(err.Error(), "Error 1008:") {
-			log.Error(err, "Failed to delete the database")
-			return err
-		} else {
-			log.Info("Database doesn't exist, no need for delete", "Host", m.Spec.Host, "Name", m.Spec.Name)
-		}
+		log.Error(err, "Failed to delete the database")
 	}
-	log.Info("Successfully, deleted database", "Host", m.Spec.Host, "Name", m.Spec.Name)
+	log.Info("Successfully, deleted database", "Host", r.adminConnection.Spec.Host, "Name", m.Spec.Name)
 	return nil
-}
-
-// This function handles setting up all the database stuff so we're ready to talk to it.
-func (r *DatabaseReconciler) getDatabaseConnection(ctx context.Context, instance *mysqlv1alpha1.Database) (*sql.DB, error) {
-	var err error
-	var dbConfig mysql.Config
-
-	// Reading the admin connection details
-	dbConfig.Net = "tcp"
-	dbConfig.DBName = "mysql"
-	dbConfig.AllowNativePasswords = true
-	dbConfig.Addr = instance.Spec.Host + ":" + strconv.Itoa(int(instance.Spec.Port))
-	// Default the admin user to root if it was not specified by the definition
-	dbConfig.User = "root"
-	if instance.Spec.AdminUser != nil {
-		dbConfig.User, err = getSecretRefValue(ctx, r.Client, instance.Namespace, &instance.Spec.AdminUser.SecretKeyRef)
-		if err != nil {
-			return nil, err
-		}
-	}
-	// Default the admin password to empty if it was not specified by the definition
-	dbConfig.Passwd = ""
-	if instance.Spec.AdminPassword != nil {
-		dbConfig.Passwd, err = getSecretRefValue(ctx, r.Client, instance.Namespace, &instance.Spec.AdminPassword.SecretKeyRef)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	db, err := sql.Open("mysql", dbConfig.FormatDSN())
-	if err != nil {
-		r.Log.Error(err, "Failed to connect to database.")
-		return nil, err
-	}
-
-	// Open doesn't open a connection. Validate DSN data and our connection
-	err = db.Ping()
-	if err != nil {
-		r.Log.Error(err, "Failed to ping database.")
-		defer db.Close()
-		return nil, err
-	}
-
-	return db, nil
-}
-
-// getSecretRefValue returns the value of a secret in the supplied namespace
-func getSecretRefValue(ctx context.Context, client client.Client, namespace string, secretSelector *v1.SecretKeySelector) (string, error) {
-
-	var namespacedName types.NamespacedName
-
-	namespacedName.Name = secretSelector.Name
-	namespacedName.Namespace = namespace
-
-	// Fetch the Stack instance
-	secret := &v1.Secret{}
-	err := client.Get(ctx, namespacedName, secret)
-	if err != nil {
-		return "", err
-	}
-	if data, ok := secret.Data[secretSelector.Key]; ok {
-		return string(data), nil
-	}
-	return "", fmt.Errorf("key %s not found in secret %s", secretSelector.Key, secretSelector.Name)
-
 }
 
 // SetupWithManager sets up the controller with the Manager.

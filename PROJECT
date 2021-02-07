@@ -8,6 +8,10 @@ resources:
   kind: Database
   version: v1alpha1
   webhookVersion: v1
+- crdVersion: v1
+  group: mysql
+  kind: DatabaseUser
+  version: v1alpha1
 version: 3-alpha
 plugins:
   manifests.sdk.operatorframework.io/v2: {}

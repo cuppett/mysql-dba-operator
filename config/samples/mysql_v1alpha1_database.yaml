@@ -1,15 +1,10 @@
 apiVersion: mysql.brightframe.com/v1alpha1
 kind: Database
 metadata:
-  name: database-sample
+  name: mydb
 spec:
-  host: 172.25.199.214.xip.io
-  adminUser:
-    secretKeyRef:
-      name: my-secret
-      key: username
-  adminPassword:
-    secretKeyRef:
-      name: my-secret
-      key: password
-  name: test
+  adminConnection:
+    namespace: brightframe
+    name: db1
+  name: mydb
+  characterSet: utf8
