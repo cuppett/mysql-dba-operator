@@ -143,12 +143,12 @@ func (r *DatabaseUserReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		exists, err := r.userExists(&loop)
 
 		if !exists {
-			_, err = r.userCreate(ctx, &loop)
+			err = r.userCreate(ctx, &loop)
 			if err != nil {
 				return ctrl.Result{}, err
 			}
 		} else {
-			_, err = r.userUpdate(ctx, &loop)
+			err = r.userUpdate(ctx, &loop)
 			if err != nil {
 				return ctrl.Result{}, err
 			}
@@ -182,14 +182,14 @@ func (r *DatabaseUserReconciler) userExists(loop *UserLoopContext) (bool, error)
 	return exists, nil
 }
 
-func (r *DatabaseUserReconciler) userCreate(ctx context.Context, loop *UserLoopContext) (bool, error) {
+func (r *DatabaseUserReconciler) userCreate(ctx context.Context, loop *UserLoopContext) error {
 
 	createQuery := "CREATE USER '" + mysqlv1alpha1.Escape(loop.instance.Spec.Username) + "'"
 	params := make([]interface{}, 0)
 
 	userDetails, err := r.userDetailString(ctx, loop, false)
 	if err != nil {
-		return false, err
+		return err
 	}
 	if userDetails != "" {
 		createQuery += userDetails
@@ -197,7 +197,7 @@ func (r *DatabaseUserReconciler) userCreate(ctx context.Context, loop *UserLoopC
 
 	err = r.runStmt(loop, createQuery, params...)
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	exists, err := r.userExists(loop)
@@ -211,20 +211,22 @@ func (r *DatabaseUserReconciler) userCreate(ctx context.Context, loop *UserLoopC
 			r.Log.Error(err, "Failure recording created user.")
 		}
 	} else if err != nil {
-		return false, err
+		return err
 	}
 
-	return true, nil
+	// Grant the user permissions to the database.
+	err = r.grant(ctx, loop)
+	return err
 }
 
-func (r *DatabaseUserReconciler) userUpdate(ctx context.Context, loop *UserLoopContext) (bool, error) {
+func (r *DatabaseUserReconciler) userUpdate(ctx context.Context, loop *UserLoopContext) error {
 
 	alterQuery := "ALTER USER '" + mysqlv1alpha1.Escape(loop.instance.Spec.Username) + "'"
 	params := make([]interface{}, 0)
 
 	userDetails, err := r.userDetailString(ctx, loop, true)
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	if userDetails != "" {
@@ -232,7 +234,7 @@ func (r *DatabaseUserReconciler) userUpdate(ctx context.Context, loop *UserLoopC
 
 		err = r.runStmt(loop, alterQuery, params...)
 		if err != nil {
-			return false, err
+			return err
 		}
 
 		exists, err := r.userExists(loop)
@@ -246,11 +248,13 @@ func (r *DatabaseUserReconciler) userUpdate(ctx context.Context, loop *UserLoopC
 				r.Log.Error(err, "Failure recording created database.")
 			}
 		} else if err != nil {
-			return false, err
+			return err
 		}
 	}
 
-	return true, nil
+	//err = r.revoke(ctx, loop)
+	//if err == nil { err = r.grant(ctx, loop) }
+	return err
 }
 
 func (r *DatabaseUserReconciler) userDetailString(ctx context.Context, loop *UserLoopContext, update bool) (string, error) {
@@ -297,6 +301,74 @@ func (r *DatabaseUserReconciler) userDetailString(ctx context.Context, loop *Use
 	}
 
 	return queryFragment, nil
+}
+
+func (r *DatabaseUserReconciler) revoke(ctx context.Context, loop *UserLoopContext) error {
+
+	var err error
+	revokeQuery := "REVOKE ALL PRIVILEGES, GRANT OPTION FROM '" + mysqlv1alpha1.Escape(loop.instance.Spec.Username) + "'"
+
+	err = r.runStmt(loop, revokeQuery)
+	if err != nil {
+		r.Log.Error(err, "Failed to revoke user permissions", "Host",
+			loop.adminConnection.Spec.Host, "Name", loop.instance.Spec.Username, "Query",
+			revokeQuery)
+		return err
+	}
+
+	return r.grantStatusUpdate(ctx, loop)
+}
+
+func (r *DatabaseUserReconciler) grant(ctx context.Context, loop *UserLoopContext) error {
+
+	var err error
+	var grantQuery string
+
+	for _, database := range loop.instance.Spec.DatabaseList {
+		grantQuery = "GRANT ALL ON " + database.Name + ".* TO '" + mysqlv1alpha1.Escape(loop.instance.Spec.Username) + "'"
+		err = r.runStmt(loop, grantQuery)
+		if err != nil {
+			r.Log.Error(err, "Failed to grant user permissions", "Host",
+				loop.adminConnection.Spec.Host, "Name", loop.instance.Spec.Username, "Query",
+				grantQuery)
+			return err
+		}
+	}
+
+	return r.grantStatusUpdate(ctx, loop)
+}
+
+func (r *DatabaseUserReconciler) grantStatusUpdate(ctx context.Context, loop *UserLoopContext) error {
+
+	var grant string
+	showQuery := "SHOW GRANTS FOR '" + mysqlv1alpha1.Escape(loop.instance.Spec.Username) + "'"
+
+	rows, err := loop.db.Query(showQuery)
+	if err != nil {
+		r.Log.Error(err, "Failed to get user grants", "Host",
+			loop.adminConnection.Spec.Host, "Name", loop.instance.Spec.Username, "Query",
+			showQuery)
+		return err
+	}
+	defer rows.Close()
+
+	loop.instance.Status.Grants = make([]string, 0)
+	for rows.Next() {
+		if err := rows.Scan(&grant); err != nil {
+			r.Log.Error(err, "Failure retrieving grant row from SHOW GRANT", "Host",
+				loop.adminConnection.Spec.Host, "Name", loop.instance.Spec.Username, "Query",
+				showQuery)
+		}
+		loop.instance.Status.Grants = append(loop.instance.Status.Grants, grant)
+	}
+
+	loop.instance.Status.SyncTime = metav1.NewTime(time.Now())
+	err = r.Status().Update(ctx, loop.instance)
+	if err != nil {
+		r.Log.Error(err, "Failure updating status for DatabaseUser")
+	}
+
+	return nil
 }
 
 func (r *DatabaseUserReconciler) runStmt(loop *UserLoopContext, query string, args ...interface{}) error {

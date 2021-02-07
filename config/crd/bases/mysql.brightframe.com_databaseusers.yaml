@@ -46,6 +46,18 @@ spec:
                 - name
                 - namespace
                 type: object
+              databasePermissions:
+                description: Currently set to allow all via GRANT ALL PRIVILEGES for
+                  the databases listed here
+                items:
+                  properties:
+                    databaseName:
+                      type: string
+                  required:
+                  - databaseName
+                  type: object
+                nullable: true
+                type: array
               identification:
                 nullable: true
                 properties:
@@ -53,7 +65,9 @@ spec:
                     description: 'Relates to auth_plugin, See: MySQL CREATE USER'
                     type: string
                   authString:
-                    description: 'Relates to auth_string, See: MySQL CREATE USER'
+                    description: 'Relates to auth_string, See: MySQL CREATE USER TODO:
+                      We should watch this object, if it changes we can flush through
+                      a new password/token.'
                     nullable: true
                     properties:
                       secretKeyRef:
@@ -84,6 +98,8 @@ spec:
                     type: boolean
                 type: object
               username:
+                description: 'TODO: Block or allow the rename of a user (currently
+                  would just CREATE new one if changed)'
                 type: string
             required:
             - adminConnection
@@ -98,6 +114,13 @@ spec:
                 format: date-time
                 nullable: true
                 type: string
+              grants:
+                description: Identifies the current permissions of the user as indicated
+                  by SHOW GRANTS
+                items:
+                  type: string
+                nullable: true
+                type: array
               message:
                 description: Indicates current state, phase or issue
                 type: string

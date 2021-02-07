@@ -28,6 +28,10 @@ type DatabaseUserSpec struct {
 	// +kubebuilder:validation:Optional
 	// +nullable
 	Identification *Identification `json:"identification,omitEmpty"`
+	// Currently set to allow all via GRANT ALL PRIVILEGES for the databases listed here
+	// +kubebuilder:validation:Optional
+	// +nullable
+	DatabaseList []DatabasePermission `json:"databasePermissions,omitEmpty"`
 }
 
 type DatabasePermission struct {
@@ -61,6 +65,10 @@ type DatabaseUserStatus struct {
 	// Indicates current state, phase or issue
 	// +kubebuilder:validation:Optional
 	Message string `json:"message,omitEmpty"`
+	// Identifies the current permissions of the user as indicated by SHOW GRANTS
+	// +kubebuilder:validation:Optional
+	// +nullable
+	Grants []string `json:"grants,omitEmpty"`
 }
 
 // +kubebuilder:object:root=true

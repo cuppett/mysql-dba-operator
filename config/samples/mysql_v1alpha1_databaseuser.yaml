@@ -12,3 +12,5 @@ spec:
       secretKeyRef:
         name: db-password
         key: password
+  databasePermissions:
+  - databaseName: mydb
