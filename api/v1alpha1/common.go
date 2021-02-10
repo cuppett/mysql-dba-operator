@@ -20,6 +20,19 @@ type SecretKeySource struct {
 // GetSecretRefValue returns the value of a secret in the supplied namespace
 func GetSecretRefValue(ctx context.Context, client client.Client, namespace string, secretSelector *v1.SecretKeySelector) (string, error) {
 
+	// Fetch the Secret instance
+	secret, err := GetSecret(ctx, client, namespace, secretSelector)
+	if err != nil {
+		return "", err
+	}
+	if data, ok := secret.Data[secretSelector.Key]; ok {
+		return string(data), nil
+	}
+	return "", fmt.Errorf("key %s not found in secret %s", secretSelector.Key, secretSelector.Name)
+
+}
+
+func GetSecret(ctx context.Context, client client.Client, namespace string, secretSelector *v1.SecretKeySelector) (*v1.Secret, error) {
 	var namespacedName types.NamespacedName
 
 	namespacedName.Name = secretSelector.Name
@@ -29,13 +42,9 @@ func GetSecretRefValue(ctx context.Context, client client.Client, namespace stri
 	secret := &v1.Secret{}
 	err := client.Get(ctx, namespacedName, secret)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	if data, ok := secret.Data[secretSelector.Key]; ok {
-		return string(data), nil
-	}
-	return "", fmt.Errorf("key %s not found in secret %s", secretSelector.Key, secretSelector.Name)
-
+	return secret, nil
 }
 
 // Not all statements can be prepared with parameters (usernames/passwords).

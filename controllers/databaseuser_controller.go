@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"database/sql"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -48,13 +49,14 @@ type DatabaseUserReconciler struct {
 type UserLoopContext struct {
 	instance        *mysqlv1alpha1.DatabaseUser
 	adminConnection *mysqlv1alpha1.AdminConnection
+	secret          *v1.Secret
 	db              *sql.DB
 }
 
 // +kubebuilder:rbac:groups=mysql.brightframe.com,resources=databaseusers,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=mysql.brightframe.com,resources=databaseusers/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=mysql.brightframe.com,resources=databaseusers/finalizers,verbs=update
-// +kubebuilder:rbac:groups=*,resources=secrets,verbs=list;get;watch
+// +kubebuilder:rbac:groups=*,resources=secrets,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -65,7 +67,7 @@ type UserLoopContext struct {
 func (r *DatabaseUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = r.Log.WithValues("databaseuser", req.NamespacedName)
 
-	loop := UserLoopContext{}
+	loop := UserLoopContext{secret: nil}
 
 	// Fetch the Database instance
 	loop.instance = &mysqlv1alpha1.DatabaseUser{}
@@ -83,6 +85,7 @@ func (r *DatabaseUserReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, err
 	}
 
+	// Acquiring the database information
 	loop.adminConnection = &mysqlv1alpha1.AdminConnection{}
 	adminConnectionNamespacedName := types.NamespacedName{
 		Namespace: loop.instance.Spec.AdminConnection.Namespace,
@@ -105,6 +108,12 @@ func (r *DatabaseUserReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, err
 	} else {
 		defer loop.db.Close()
+	}
+
+	// Getting the secret
+	if loop.instance.Spec.Identification != nil && loop.instance.Spec.Identification.AuthString != nil {
+		loop.secret, err = mysqlv1alpha1.GetSecret(ctx, r.Client, loop.instance.Namespace,
+			&loop.instance.Spec.Identification.AuthString.SecretKeyRef)
 	}
 
 	// Check if the user instance is marked to be deleted, which is
@@ -136,30 +145,39 @@ func (r *DatabaseUserReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		// Ensuring old/new username is always set.
 		loop.instance.Status.Username = loop.instance.Spec.Username
 		err = r.Status().Update(ctx, loop.instance)
+	} else if !r.secretOwnershipOk(&loop) {
+		err = controllerutil.SetControllerReference(loop.instance, loop.secret, r.Scheme)
+		if err == nil {
+			err = r.Update(ctx, loop.secret)
+		}
+		if err != nil {
+			r.Log.Error(err, "Failure taking ownership of the authentication secret.", "Name",
+				loop.secret.Name, "Namespace", loop.secret.Namespace)
+		} else {
+			r.Log.Info("Taking ownership of the authentication secret.", "Name",
+				loop.secret.Name, "Namespace", loop.secret.Namespace)
+		}
 	} else if !controllerutil.ContainsFinalizer(loop.instance, userFinalizer) {
 		// Add finalizer for this CR
 		controllerutil.AddFinalizer(loop.instance, userFinalizer)
 		err = r.Update(ctx, loop.instance)
 		if err != nil {
-			r.Log.Error(err, "Failure adding the finalizer.")
+			r.Log.Error(err, "Failure adding the finalizer.", "Name",
+				loop.instance.Name, "Namespace", loop.instance.Namespace)
 		}
 	} else {
 		exists, err := r.userExists(&loop)
 
 		if !exists {
 			err = r.userCreate(ctx, &loop)
-			if err != nil {
-				return ctrl.Result{}, err
+			if err == nil {
+				loop.instance.Status.CreationTime = metav1.NewTime(time.Now())
+				loop.instance.Status.Message = "Created user"
+				err = r.Status().Update(ctx, loop.instance)
 			}
-			loop.instance.Status.CreationTime = metav1.NewTime(time.Now())
-			loop.instance.Status.Message = "Created user"
-			err = r.Status().Update(ctx, loop.instance)
 		} else {
 			updated, err := r.userUpdate(ctx, &loop)
-			if err != nil {
-				return ctrl.Result{}, err
-			}
-			if updated {
+			if err == nil && updated {
 				loop.instance.Status.SyncTime = metav1.NewTime(time.Now())
 				err = r.Status().Update(ctx, loop.instance)
 			}
@@ -171,11 +189,28 @@ func (r *DatabaseUserReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	return ctrl.Result{}, err
 }
 
+func (r *DatabaseUserReconciler) secretOwnershipOk(loop *UserLoopContext) bool {
+
+	// There's no secret.
+	if loop.secret == nil {
+		return true
+	}
+	// Making sure we check all the ownerRefs
+	if loop.secret.OwnerReferences != nil {
+		for _, owner := range loop.secret.OwnerReferences {
+			if owner.UID == loop.instance.UID && *owner.Controller {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func (r *DatabaseUserReconciler) userExists(loop *UserLoopContext) (bool, error) {
 
-	var exists bool
+	var plugin string
 
-	findStmt, err := loop.db.Prepare("SELECT EXISTS(SELECT 1 FROM mysql.user WHERE user = ?)")
+	findStmt, err := loop.db.Prepare("SELECT plugin FROM mysql.user WHERE user = ?")
 	if err != nil {
 		r.Log.Error(err, "Failed to prepare information schema query.", "Host",
 			loop.adminConnection.Spec.Host, "User", loop.instance.Status.Username)
@@ -184,19 +219,21 @@ func (r *DatabaseUserReconciler) userExists(loop *UserLoopContext) (bool, error)
 	defer findStmt.Close()
 
 	result := findStmt.QueryRow(loop.instance.Status.Username)
-	err = result.Scan(&exists)
-	if err != nil {
-		r.Log.Error(err, "Failed retrieving user", "Host", loop.adminConnection.Spec.Host, "Name", loop.instance.Status.Username)
+	err = result.Scan(&plugin)
+	if err != nil && err == sql.ErrNoRows {
+		r.Log.Info("User does not exist", "Host", loop.adminConnection.Spec.Host, "Name", loop.instance.Status.Username)
 		return false, nil
+	} else if err != nil {
+		r.Log.Error(err, "Failed retrieving user", "Host", loop.adminConnection.Spec.Host, "Name", loop.instance.Status.Username)
+		return false, err
 	}
 
-	if exists {
-		r.Log.Info("Successfully retrieved user", "Host", loop.adminConnection.Spec.Host,
-			"Name", loop.instance.Status.Username)
+	if loop.instance.Status.Identification == nil {
+		loop.instance.Status.Identification = &mysqlv1alpha1.Identification{AuthPlugin: plugin}
 	} else {
-		r.Log.Info("User does not exist", "Host", loop.adminConnection.Spec.Host, "Name", loop.instance.Status.Username)
+		loop.instance.Status.Identification.AuthPlugin = plugin
 	}
-	return exists, nil
+	return true, nil
 }
 
 func (r *DatabaseUserReconciler) userCreate(ctx context.Context, loop *UserLoopContext) error {
@@ -282,43 +319,64 @@ func (r *DatabaseUserReconciler) userDetailString(ctx context.Context, loop *Use
 	var err error
 	queryFragment := ""
 	authString := ""
+	authPlugin := ""
+	pluginsDiff := false
+	passwordUpdated := false
 
 	if loop.instance.Spec.Identification != nil {
-		if loop.instance.Spec.Identification.AuthString != nil {
-			authString, err = mysqlv1alpha1.GetSecretRefValue(ctx, r.Client, loop.instance.Namespace,
-				&loop.instance.Spec.Identification.AuthString.SecretKeyRef)
-			if err != nil {
-				r.Log.Error(err, "Failed to read user auth string", "Host",
-					loop.adminConnection.Spec.Host, "Name", loop.instance.Status.Username, "Secret",
-					loop.instance.Spec.Identification.AuthString.SecretKeyRef.Name)
-				return queryFragment, err
-			}
-			authString = mysqlv1alpha1.Escape(authString)
+
+		if loop.instance.Spec.Identification.AuthString != nil &&
+			loop.instance.Status.IdentificationResourceVersion != loop.secret.ResourceVersion {
+			passwordUpdated = true
 		}
 
-		// TODO: We should validate the authplugin against those actually installed in the database (webhook?)
-		if loop.instance.Spec.Identification.AuthPlugin != "" {
-			queryFragment += " IDENTIFIED WITH " + loop.instance.Spec.Identification.AuthPlugin
-			if authString != "" {
-				// TODO: We could actually check the token here by seeing if the secret was updated since SyncTime
-				// (update && loop.instance.Spec.Identification.ClearText) would require the time check.
-				if loop.instance.Spec.Identification.ClearText {
-					queryFragment += " BY '" + authString + "'"
-				} else {
-					queryFragment += " AS '" + authString + "'"
+		authString, err = mysqlv1alpha1.GetSecretRefValue(ctx, r.Client, loop.instance.Namespace,
+			&loop.instance.Spec.Identification.AuthString.SecretKeyRef)
+		if err != nil {
+			r.Log.Error(err, "Failed to read user auth string", "Host",
+				loop.adminConnection.Spec.Host, "Name", loop.instance.Status.Username, "Secret",
+				loop.instance.Spec.Identification.AuthString.SecretKeyRef.Name)
+			return queryFragment, err
+		}
+		authString = mysqlv1alpha1.Escape(authString)
+
+		// Looking for currently known auth_plugin in both places. Where Status has it, grab to hang onto it.
+		authPlugin = loop.instance.Spec.Identification.AuthPlugin
+		if authPlugin == "" && loop.instance.Status.Identification != nil {
+			authPlugin = loop.instance.Status.Identification.AuthPlugin
+		} else if loop.instance.Status.Identification != nil &&
+			loop.instance.Spec.Identification.AuthPlugin != loop.instance.Status.Identification.AuthPlugin {
+			pluginsDiff = true
+		}
+		if authPlugin != "" {
+			authPlugin = mysqlv1alpha1.Escape(authPlugin)
+		}
+
+		if passwordUpdated || pluginsDiff {
+			if authPlugin != "" {
+				queryFragment += " IDENTIFIED WITH '" + authPlugin + "'"
+				if authString != "" {
+					if loop.instance.Spec.Identification.ClearText {
+						queryFragment += " BY '" + authString + "'"
+					} else {
+						queryFragment += " AS '" + authString + "'"
+					}
 				}
-			}
-		} else {
-			// TODO: We could actually check the token here by seeing if the secret was updated since SyncTime
-			// (update && loop.instance.Spec.Identification.ClearText) would require the time check.
-			if authString != "" && !update {
-				queryFragment += " IDENTIFIED BY"
-				if !loop.instance.Spec.Identification.ClearText {
-					queryFragment += " PASSWORD"
+			} else {
+				if authString != "" && !update {
+					queryFragment += " IDENTIFIED BY"
+					if !loop.instance.Spec.Identification.ClearText {
+						queryFragment += " PASSWORD"
+					}
+					queryFragment += " '" + authString + "'"
 				}
-				queryFragment += " '" + authString + "'"
 			}
 		}
+
+		// If this update pass is successful, our identification details will match.
+		loop.instance.Status.IdentificationResourceVersion = loop.secret.ResourceVersion
+		loop.instance.Status.Identification = loop.instance.Spec.Identification
+		loop.instance.Status.Identification.AuthPlugin = authPlugin // For the case where Spec=""
 	}
 
 	return queryFragment, nil
@@ -433,6 +491,7 @@ func (r *DatabaseUserReconciler) finalizeUser(loop *UserLoopContext) error {
 func (r *DatabaseUserReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&mysqlv1alpha1.DatabaseUser{}).
+		Owns(&v1.Secret{}).
 		Complete(r)
 }
 

@@ -74,6 +74,12 @@ type DatabaseUserStatus struct {
 	// +kubebuilder:validation:Optional
 	// +nullable
 	Grants []string `json:"grants,omitEmpty"`
+	// +kubebuilder:validation:Optional
+	// +nullable
+	Identification *Identification `json:"identification,omitEmpty"`
+	// +kubebuilder:validation:Optional
+	// +nullable
+	IdentificationResourceVersion string `json:"identificationResourceVersion,omitEmpty"`
 }
 
 // +kubebuilder:object:root=true
