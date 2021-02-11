@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -114,6 +115,12 @@ func (r *DatabaseUserReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	if loop.instance.Spec.Identification != nil && loop.instance.Spec.Identification.AuthString != nil {
 		loop.secret, err = mysqlv1alpha1.GetSecret(ctx, r.Client, loop.instance.Namespace,
 			&loop.instance.Spec.Identification.AuthString.SecretKeyRef)
+		if err != nil {
+			return ctrl.Result{}, err
+		} else if loop.secret == nil {
+			err = fmt.Errorf("invalid secret given, not found or available even though specified")
+			return ctrl.Result{}, err
+		}
 	}
 
 	// Check if the user instance is marked to be deleted, which is
@@ -137,7 +144,6 @@ func (r *DatabaseUserReconciler) Reconcile(ctx context.Context, req ctrl.Request
 				return ctrl.Result{}, err
 			}
 		}
-
 		return ctrl.Result{}, nil
 	}
 

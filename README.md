@@ -1,4 +1,4 @@
-#MySQL Database Operator
+# MySQL Database Operator
 
 This operator does **not** provision MySQL database servers.
 It works against and within existing database servers.
