@@ -34,7 +34,7 @@ import (
 )
 
 const (
-	dbFinalizer = "finalizer.db.mysql.brightframe.com"
+	dbFinalizer = "mysql.brightframe.com/db-finalizer"
 )
 
 // DatabaseReconciler reconciles a Database object

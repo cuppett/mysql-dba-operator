@@ -36,7 +36,7 @@ import (
 )
 
 const (
-	userFinalizer = "finalizer.user.mysql.brightframe.com"
+	userFinalizer = "mysql.brightframe.com/user-finalizer"
 )
 
 // DatabaseUserReconciler reconciles a DatabaseUser object
