@@ -82,7 +82,7 @@ ARCHOPER = $(shell uname -m )
 
 # Build the docker image
 docker-build:
-	docker build --build-arg arch=$(ARCH) -t ${IMG} .
+	docker build --cgroup-manager=cgroupfs --build-arg arch=$(ARCH) -t ${IMG} .
 
 # Push the docker image
 docker-push:
