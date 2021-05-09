@@ -94,4 +94,4 @@ The <code>v1.Secret</code> will have <code>ownerReferences</code> updated to bel
 This is to facilitate one-use passwords and automatically clean them up or scrub them when the user is
 removed/dropped.
 
-Operator built using [Operator SDK](https://sdk.operatorframework.io/) 1.3.0
+Operator built using [Operator SDK](https://sdk.operatorframework.io/) 1.7.2

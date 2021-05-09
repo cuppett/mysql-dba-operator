@@ -5,15 +5,9 @@ generatorOptions:
   disableNameSuffixHash: true
 
 configMapGenerator:
-- files:
+- name: manager-config
+  files:
   - controller_manager_config.yaml
-  name: manager-config
-apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
-images:
-- digest: sha256:8174d8dbcc6bac98e46a3de19f27c1479d6ee0870ccf74adae8ceb0cc07d1d97
-  name: controller
-  newName: 072298089782.dkr.ecr.us-east-2.amazonaws.com/mysql-database-operator
 
 # Uncomment the below to use a private pull secret
 #patches:
