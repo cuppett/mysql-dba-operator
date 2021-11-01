@@ -5,7 +5,7 @@ go 1.15
 require (
 	github.com/go-logr/logr v0.4.0
 	github.com/go-sql-driver/mysql v1.6.0
-	github.com/onsi/ginkgo v1.16.4
+	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.13.0
 	github.com/prometheus/common v0.25.0
 	k8s.io/api v0.20.2
