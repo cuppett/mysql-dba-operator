@@ -1,5 +1,5 @@
 # Build the manager binary
-FROM 072298089782.dkr.ecr.us-east-2.amazonaws.com/golang:1.15 as builder
+FROM quay.io/cuppett/golang:1.17 as builder
 
 ARG arch
 
@@ -21,7 +21,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=$arch GO111MODULE=on go build -a -o manager 
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
-FROM 072298089782.dkr.ecr.us-east-2.amazonaws.com/static:nonroot
+FROM registry.access.redhat.com/ubi8-minimal:latest
 WORKDIR /
 COPY --from=builder /workspace/manager .
 USER 65532:65532
