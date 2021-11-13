@@ -99,7 +99,7 @@ ifeq (, $(shell which kustomize 2>/dev/null))
 	@{ \
 	set -e ;\
 	mkdir -p bin ;\
-	curl -o bin/kustomize https://build-binaries-us-east-2-072298089782.s3.us-east-2.amazonaws.com/kustomize/kustomize_$(ARCH)_3.9.2 ;\
+	curl -o bin/kustomize https://build-binaries-us-east-2-072298089782.s3.us-east-2.amazonaws.com/kustomize/kustomize_$(ARCH)_4.3.0 ;\
 	chmod +x bin/kustomize ;\
 	}
 KUSTOMIZE=$(realpath ./bin/kustomize)
