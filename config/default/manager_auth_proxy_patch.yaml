@@ -10,7 +10,7 @@ spec:
     spec:
       containers:
       - name: kube-rbac-proxy
-        image: 072298089782.dkr.ecr.us-east-2.amazonaws.com/kube-rbac-proxy:v0.8.0
+        image: quay.io/cuppett/kube-rbac-proxy:v0.11.0
         args:
         - "--secure-listen-address=0.0.0.0:8443"
         - "--upstream=http://127.0.0.1:8080/"
@@ -20,6 +20,13 @@ spec:
         - containerPort: 8443
           protocol: TCP
           name: https
+        resources:
+          limits:
+            cpu: 500m
+            memory: 128Mi
+          requests:
+            cpu: 5m
+            memory: 64Mi
       - name: manager
         args:
         - "--health-probe-bind-address=:8081"

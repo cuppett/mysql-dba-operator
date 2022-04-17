@@ -22,7 +22,6 @@ import (
 	mysqlv1alpha1 "github.com/brightframe/mysql-database-operator/api/v1alpha1"
 	"github.com/go-logr/logr"
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/prometheus/common/log"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -233,7 +232,7 @@ func (r *DatabaseReconciler) databaseUpdate(loop *DatabaseLoopContext) (bool, er
 		r.Log.Info("Successfully altered database", "Host", loop.adminConnection.Spec.Host,
 			"Name", loop.instance.Spec.Name)
 		if err != nil {
-			log.Error(err, "Failure recording altered state.")
+			r.Log.Error(err, "Failure recording altered state.")
 			return false, err
 		}
 	}
@@ -271,9 +270,9 @@ func (r *DatabaseReconciler) finalizeDatabase(loop *DatabaseLoopContext) error {
 
 	_, err := loop.db.Exec("DROP DATABASE IF EXISTS " + loop.instance.Spec.Name)
 	if err != nil {
-		log.Error(err, "Failed to delete the database")
+		r.Log.Error(err, "Failed to delete the database")
 	}
-	log.Info("Successfully, deleted database", "Host", loop.adminConnection.Spec.Host, "Name", loop.instance.Spec.Name)
+	r.Log.Info("Successfully, deleted database", "Host", loop.adminConnection.Spec.Host, "Name", loop.instance.Spec.Name)
 	return nil
 }
 
