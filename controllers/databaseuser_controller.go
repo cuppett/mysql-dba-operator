@@ -32,7 +32,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	mysqlv1alpha1 "github.com/brightframe/mysql-database-operator/api/v1alpha1"
+	mysqlv1alpha1 "github.com/cuppett/mysql-dba-operator/api/v1alpha1"
 )
 
 const (
@@ -54,9 +54,9 @@ type UserLoopContext struct {
 	db              *sql.DB
 }
 
-// +kubebuilder:rbac:groups=mysql.brightframe.com,resources=databaseusers,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=mysql.brightframe.com,resources=databaseusers/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=mysql.brightframe.com,resources=databaseusers/finalizers,verbs=update
+// +kubebuilder:rbac:groups=mysql.apps.cuppett.dev,resources=databaseusers,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=mysql.apps.cuppett.dev,resources=databaseusers/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=mysql.apps.cuppett.dev,resources=databaseusers/finalizers,verbs=update
 // +kubebuilder:rbac:groups=*,resources=secrets,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to

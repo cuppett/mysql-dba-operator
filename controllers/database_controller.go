@@ -19,7 +19,7 @@ package controllers
 import (
 	"context"
 	"database/sql"
-	mysqlv1alpha1 "github.com/brightframe/mysql-database-operator/api/v1alpha1"
+	mysqlv1alpha1 "github.com/cuppett/mysql-dba-operator/api/v1alpha1"
 	"github.com/go-logr/logr"
 	_ "github.com/go-sql-driver/mysql"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -50,9 +50,9 @@ type DatabaseLoopContext struct {
 	db              *sql.DB
 }
 
-// +kubebuilder:rbac:groups=mysql.brightframe.com,resources=databases,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=mysql.brightframe.com,resources=databases/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=mysql.brightframe.com,resources=databases/finalizers,verbs=update
+// +kubebuilder:rbac:groups=mysql.apps.cuppett.dev,resources=databases,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=mysql.apps.cuppett.dev,resources=databases/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=mysql.apps.cuppett.dev,resources=databases/finalizers,verbs=update
 // +kubebuilder:rbac:groups=*,resources=secrets,verbs=list;get;watch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to

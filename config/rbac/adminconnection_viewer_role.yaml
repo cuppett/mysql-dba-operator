@@ -5,7 +5,7 @@ metadata:
   name: adminconnection-viewer-role
 rules:
 - apiGroups:
-  - mysql.brightframe.com
+  - mysql.apps.cuppett.dev
   resources:
   - adminconnections
   verbs:
@@ -13,7 +13,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - mysql.brightframe.com
+  - mysql.apps.cuppett.dev
   resources:
   - adminconnections/status
   verbs:

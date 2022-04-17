@@ -31,8 +31,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	mysqlv1alpha1 "github.com/brightframe/mysql-database-operator/api/v1alpha1"
-	"github.com/brightframe/mysql-database-operator/controllers"
+	mysqlv1alpha1 "github.com/cuppett/mysql-dba-operator/api/v1alpha1"
+	"github.com/cuppett/mysql-dba-operator/controllers"
 	// +kubebuilder:scaffold:imports
 )
 

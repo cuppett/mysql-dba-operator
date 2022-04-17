@@ -1,4 +1,4 @@
-module github.com/brightframe/mysql-database-operator
+module github.com/cuppett/mysql-dba-operator
 
 go 1.17
 

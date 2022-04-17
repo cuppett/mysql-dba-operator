@@ -26,7 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"time"
 
-	mysqlv1alpha1 "github.com/brightframe/mysql-database-operator/api/v1alpha1"
+	mysqlv1alpha1 "github.com/cuppett/mysql-dba-operator/api/v1alpha1"
 )
 
 // AdminConnectionReconciler reconciles a AdminConnection object
@@ -36,9 +36,9 @@ type AdminConnectionReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-// +kubebuilder:rbac:groups=mysql.brightframe.com,resources=adminconnections,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=mysql.brightframe.com,resources=adminconnections/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=mysql.brightframe.com,resources=adminconnections/finalizers,verbs=update
+// +kubebuilder:rbac:groups=mysql.apps.cuppett.dev,resources=adminconnections,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=mysql.apps.cuppett.dev,resources=adminconnections/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=mysql.apps.cuppett.dev,resources=adminconnections/finalizers,verbs=update
 // +kubebuilder:rbac:groups=*,resources=secrets,verbs=list;get;watch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to

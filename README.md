@@ -1,4 +1,4 @@
-# MySQL Database Operator
+# MySQL DBA Operator
 
 This operator does **not** provision MySQL database servers.
 It works against and within existing database servers.
@@ -15,11 +15,11 @@ separate from user applications.
 Sample:
 
 <pre>
-apiVersion: mysql.brightframe.com/v1alpha1
+apiVersion: mysql.apps.cuppett.dev/v1alpha1
 kind: AdminConnection
 metadata:
   name: db1
-  namespace: brightframe
+  namespace: cuppett
 spec:
   host: 172.25.234.155.xip.io
   adminPassword:
@@ -41,7 +41,7 @@ against the server to match the specification in your custom resource.
 Sample:
 
 <pre>
-apiVersion: mysql.brightframe.com/v1alpha1
+apiVersion: mysql.apps.cuppett.dev/v1alpha1
 kind: Database
 metadata:
   name: mydb
@@ -68,7 +68,7 @@ the database.
 
 Sample:
 <pre>
-apiVersion: mysql.brightframe.com/v1alpha1
+apiVersion: mysql.apps.cuppett.dev/v1alpha1
 kind: DatabaseUser
 metadata:
   name: cuppett

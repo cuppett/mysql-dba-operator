@@ -5,7 +5,7 @@ metadata:
   name: adminconnection-editor-role
 rules:
 - apiGroups:
-  - mysql.brightframe.com
+  - mysql.apps.cuppett.dev
   resources:
   - adminconnections
   verbs:
@@ -17,7 +17,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - mysql.brightframe.com
+  - mysql.apps.cuppett.dev
   resources:
   - adminconnections/status
   verbs:

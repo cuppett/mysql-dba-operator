@@ -18,7 +18,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - mysql.brightframe.com
+  - mysql.apps.cuppett.dev
   resources:
   - adminconnections
   verbs:
@@ -30,13 +30,13 @@ rules:
   - update
   - watch
 - apiGroups:
-  - mysql.brightframe.com
+  - mysql.apps.cuppett.dev
   resources:
   - adminconnections/finalizers
   verbs:
   - update
 - apiGroups:
-  - mysql.brightframe.com
+  - mysql.apps.cuppett.dev
   resources:
   - adminconnections/status
   verbs:
@@ -44,7 +44,7 @@ rules:
   - patch
   - update
 - apiGroups:
-  - mysql.brightframe.com
+  - mysql.apps.cuppett.dev
   resources:
   - databases
   verbs:
@@ -56,13 +56,13 @@ rules:
   - update
   - watch
 - apiGroups:
-  - mysql.brightframe.com
+  - mysql.apps.cuppett.dev
   resources:
   - databases/finalizers
   verbs:
   - update
 - apiGroups:
-  - mysql.brightframe.com
+  - mysql.apps.cuppett.dev
   resources:
   - databases/status
   verbs:
@@ -70,7 +70,7 @@ rules:
   - patch
   - update
 - apiGroups:
-  - mysql.brightframe.com
+  - mysql.apps.cuppett.dev
   resources:
   - databaseusers
   verbs:
@@ -82,13 +82,13 @@ rules:
   - update
   - watch
 - apiGroups:
-  - mysql.brightframe.com
+  - mysql.apps.cuppett.dev
   resources:
   - databaseusers/finalizers
   verbs:
   - update
 - apiGroups:
-  - mysql.brightframe.com
+  - mysql.apps.cuppett.dev
   resources:
   - databaseusers/status
   verbs:

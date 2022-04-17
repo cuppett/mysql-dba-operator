@@ -1,8 +1,8 @@
-domain: brightframe.com
+domain: apps.cuppett.dev
 layout:
 - go.kubebuilder.io/v3
-projectName: mysql-database-operator
-repo: github.com/brightframe/mysql-database-operator
+projectName: mysql-dba-operator
+repo: github.com/cuppett/mysql-dba-operator
 resources:
 - crdVersion: v1
   group: mysql
