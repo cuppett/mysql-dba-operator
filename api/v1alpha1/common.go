@@ -47,7 +47,7 @@ func GetSecret(ctx context.Context, client client.Client, namespace string, secr
 	return secret, nil
 }
 
-// Not all statements can be prepared with parameters (usernames/passwords).
+// Escape Not all statements can be prepared with parameters (usernames/passwords).
 // For escaping MySQL strings.
 // See: https://stackoverflow.com/questions/31647406/mysql-real-escape-string-equivalent-for-golang
 func Escape(sql string) string {
