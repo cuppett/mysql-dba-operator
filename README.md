@@ -48,7 +48,7 @@ metadata:
   namespace: customer-ns
 spec:
   adminConnection:
-    namespace: brightframe
+    namespace: cuppett
     name: db1
   name: mydb
   characterSet: utf8
