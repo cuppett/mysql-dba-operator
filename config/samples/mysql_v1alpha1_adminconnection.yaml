@@ -1,4 +1,4 @@
-apiVersion: mysql.brightframe.com/v1alpha1
+apiVersion: mysql.apps.cuppett.dev/v1alpha1
 kind: AdminConnection
 metadata:
   name: db1

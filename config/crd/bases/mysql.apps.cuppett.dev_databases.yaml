@@ -5,9 +5,9 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.8.0
   creationTimestamp: null
-  name: databases.mysql.brightframe.com
+  name: databases.mysql.apps.cuppett.dev
 spec:
-  group: mysql.brightframe.com
+  group: mysql.apps.cuppett.dev
   names:
     kind: Database
     listKind: DatabaseList
@@ -40,12 +40,13 @@ spec:
                   name:
                     type: string
                   namespace:
+                    nullable: true
                     type: string
                 required:
                 - name
-                - namespace
                 type: object
               characterSet:
+                nullable: true
                 type: string
               collate:
                 type: string
@@ -70,6 +71,9 @@ spec:
                 type: string
               message:
                 description: Indicates current state, phase or issue
+                type: string
+              name:
+                nullable: true
                 type: string
               syncTime:
                 format: date-time

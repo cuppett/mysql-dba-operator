@@ -1,10 +1,10 @@
-apiVersion: mysql.brightframe.com/v1alpha1
+apiVersion: mysql.apps.cuppett.dev/v1alpha1
 kind: DatabaseUser
 metadata:
   name: cuppett
 spec:
   adminConnection:
-    namespace: brightframe
+    namespace: cuppett
     name: db1
   username: cuppett
   identification:

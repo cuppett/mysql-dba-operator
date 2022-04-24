@@ -1,5 +1,5 @@
 /*
-Copyright 2021.
+Copyright 2022.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -71,7 +71,7 @@ func main() {
 		Port:                   9443,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "c5e62347.brightframe.com",
+		LeaderElectionID:       "c5e62347.cuppett.dev",
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")

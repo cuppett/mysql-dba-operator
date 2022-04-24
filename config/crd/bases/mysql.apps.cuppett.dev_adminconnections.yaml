@@ -5,9 +5,9 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.8.0
   creationTimestamp: null
-  name: adminconnections.mysql.brightframe.com
+  name: adminconnections.mysql.apps.cuppett.dev
 spec:
-  group: mysql.brightframe.com
+  group: mysql.apps.cuppett.dev
   names:
     kind: AdminConnection
     listKind: AdminConnectionList
@@ -83,6 +83,11 @@ spec:
                 required:
                 - secretKeyRef
                 type: object
+              allowedNamespaces:
+                items:
+                  type: string
+                nullable: true
+                type: array
               host:
                 format: hostname
                 type: string

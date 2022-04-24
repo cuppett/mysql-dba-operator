@@ -5,9 +5,9 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.8.0
   creationTimestamp: null
-  name: databaseusers.mysql.brightframe.com
+  name: databaseusers.mysql.apps.cuppett.dev
 spec:
-  group: mysql.brightframe.com
+  group: mysql.apps.cuppett.dev
   names:
     kind: DatabaseUser
     listKind: DatabaseUserList
@@ -40,10 +40,10 @@ spec:
                   name:
                     type: string
                   namespace:
+                    nullable: true
                     type: string
                 required:
                 - name
-                - namespace
                 type: object
               databasePermissions:
                 description: Currently set to allow all via GRANT ALL PRIVILEGES for

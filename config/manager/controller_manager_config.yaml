@@ -8,4 +8,4 @@ webhook:
   port: 9443
 leaderElection:
   leaderElect: true
-  resourceName: c5e62347.brightframe.com
+  resourceName: c5e62347.cuppett.dev
