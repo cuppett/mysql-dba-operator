@@ -1,5 +1,5 @@
 /*
-Copyright 2021.
+Copyright 2022.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -36,7 +36,7 @@ import (
 )
 
 const (
-	userFinalizer = "mysql.brightframe.com/user-finalizer"
+	userFinalizer = "mysql.zapps.cuppett.dev/user-finalizer"
 )
 
 // DatabaseUserReconciler reconciles a DatabaseUser object
@@ -86,20 +86,18 @@ func (r *DatabaseUserReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, err
 	}
 
-	// Acquiring the database information
-	loop.adminConnection = &mysqlv1alpha1.AdminConnection{}
-	adminConnectionNamespacedName := types.NamespacedName{
-		Namespace: loop.instance.Spec.AdminConnection.Namespace,
-		Name:      loop.instance.Spec.AdminConnection.Name,
-	}
-	err = r.Client.Get(ctx, adminConnectionNamespacedName, loop.adminConnection)
+	// Getting admin connection
+	loop.adminConnection, err = mysqlv1alpha1.GetAdminConnection(ctx, r.Client, r.Log, req.Namespace, loop.instance.Spec.AdminConnection)
 	if err != nil {
-		if errors.IsNotFound(err) {
-			r.Log.Info("AdminConnection resource not found. Object must be deleted")
-			return ctrl.Result{}, err
-		}
-		// Error reading the object - requeue the request.
-		r.Log.Error(err, "Failed to get AdminConnection")
+		return ctrl.Result{}, err
+	}
+	r.Log.WithValues("AdminConnection", types.NamespacedName{Name: loop.adminConnection.Name, Namespace: loop.adminConnection.Namespace})
+
+	// Check this is an allowed admin connection. If not, just stop here.
+	if !loop.adminConnection.AllowedNamespace(req.Namespace) {
+		r.Log.Info("Namespace not permitted by AdminConnection for this namespace")
+		loop.instance.Status.Message = "Failed to reconcile against current admin connection (not permitted by AdminConnection)."
+		err = r.Status().Update(ctx, loop.instance)
 		return ctrl.Result{}, err
 	}
 
@@ -262,7 +260,7 @@ func (r *DatabaseUserReconciler) userCreate(ctx context.Context, loop *UserLoopC
 	r.Log.Info("Successfully created user", "Host", loop.adminConnection.Spec.Host,
 		"Name", loop.instance.Status.Username)
 
-	_, err = r.grant(loop)
+	_, err = r.grant(ctx, loop)
 	return err
 }
 
@@ -314,7 +312,7 @@ func (r *DatabaseUserReconciler) userUpdate(ctx context.Context, loop *UserLoopC
 			_, err = r.revoke(loop)
 		}
 		if err == nil {
-			_, err = r.grant(loop)
+			_, err = r.grant(ctx, loop)
 		}
 	}
 	return permsDiff, err
@@ -404,13 +402,23 @@ func (r *DatabaseUserReconciler) revoke(loop *UserLoopContext) (bool, error) {
 	return r.grantStatusUpdate(loop, true)
 }
 
-func (r *DatabaseUserReconciler) grant(loop *UserLoopContext) (bool, error) {
+func (r *DatabaseUserReconciler) grant(ctx context.Context, loop *UserLoopContext) (bool, error) {
 
 	var err error
 	var grantQuery string
+	var databaseName types.NamespacedName
 
-	for _, database := range loop.instance.Spec.DatabaseList {
-		grantQuery = "GRANT ALL ON " + database.Name + ".* TO '" + mysqlv1alpha1.Escape(loop.instance.Status.Username) + "'"
+	databaseName.Namespace = loop.instance.Namespace
+	database := &mysqlv1alpha1.Database{}
+
+	for _, permission := range loop.instance.Spec.DatabaseList {
+		databaseName.Name = permission.Name
+		err = r.Client.Get(ctx, databaseName, database)
+		if err != nil {
+			r.Log.Error(err, "Failure fetching database object.", "Database", databaseName)
+			return false, err
+		}
+		grantQuery = "GRANT ALL ON " + database.Status.Name + ".* TO '" + mysqlv1alpha1.Escape(loop.instance.Status.Username) + "'"
 		err = r.runStmt(loop, grantQuery)
 		if err != nil {
 			r.Log.Error(err, "Failed to grant user permissions", "Host",

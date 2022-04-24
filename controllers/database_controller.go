@@ -1,5 +1,5 @@
 /*
-Copyright 2021.
+Copyright 2022.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -33,7 +33,7 @@ import (
 )
 
 const (
-	dbFinalizer = "mysql.brightframe.com/db-finalizer"
+	dbFinalizer = "mysql.apps.cuppett.dev/db-finalizer"
 )
 
 // DatabaseReconciler reconciles a Database object
@@ -61,7 +61,7 @@ type DatabaseLoopContext struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.7.0/pkg/reconcile
 func (r *DatabaseReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = r.Log.WithValues("database", req.NamespacedName)
+	_ = r.Log.WithValues("Database", req.NamespacedName)
 
 	loop := DatabaseLoopContext{}
 
@@ -81,20 +81,18 @@ func (r *DatabaseReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, err
 	}
 
-	// Acquiring the database information
-	loop.adminConnection = &mysqlv1alpha1.AdminConnection{}
-	adminConnectionNamespacedName := types.NamespacedName{
-		Namespace: loop.instance.Spec.AdminConnection.Namespace,
-		Name:      loop.instance.Spec.AdminConnection.Name,
-	}
-	err = r.Client.Get(ctx, adminConnectionNamespacedName, loop.adminConnection)
+	// Getting admin connection
+	loop.adminConnection, err = mysqlv1alpha1.GetAdminConnection(ctx, r.Client, r.Log, req.Namespace, loop.instance.Spec.AdminConnection)
 	if err != nil {
-		if errors.IsNotFound(err) {
-			r.Log.Info("AdminConnection resource not found. Object must be deleted")
-			return ctrl.Result{}, err
-		}
-		// Error reading the object - requeue the request.
-		r.Log.Error(err, "Failed to get AdminConnection")
+		return ctrl.Result{}, err
+	}
+	r.Log.WithValues("AdminConnection", types.NamespacedName{Name: loop.adminConnection.Name, Namespace: loop.adminConnection.Namespace})
+
+	// Check this is an allowed admin connection. If not, just stop here.
+	if !loop.adminConnection.AllowedNamespace(req.Namespace) {
+		r.Log.Info("Namespace not permitted by AdminConnection for this namespace")
+		loop.instance.Status.Message = "Failed to reconcile against current admin connection (not permitted by AdminConnection)."
+		err = r.Status().Update(ctx, loop.instance)
 		return ctrl.Result{}, err
 	}
 
@@ -149,6 +147,7 @@ func (r *DatabaseReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 			if err == nil && created {
 				loop.instance.Status.CreationTime = metav1.NewTime(time.Now())
 				loop.instance.Status.Message = "Created database"
+				loop.instance.Status.Name = loop.instance.Spec.Name
 				err = r.Status().Update(ctx, loop.instance)
 				if err != nil {
 					r.Log.Error(err, "Failure creating database.", "Name", loop.instance.Spec.Name)

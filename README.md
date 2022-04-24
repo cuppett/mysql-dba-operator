@@ -26,11 +26,19 @@ spec:
     secretKeyRef:
       name: mysql
       key: database-root-password
+  allowedNamespaces:
+    - tenant1
+    - openshift-*
+    - blog-*
 </pre>
 
 <code>adminUser</code> can be defined similarly to <code>adminPassword</code>.
 The default username is 'root' and the default password is an empty string.
 <code>host</code> is required to be a valid hostname.
+
+<code>allowedNamespaces</code> is there to enable usage of the admin connection for provisioning only where desired.
+By default, only the namespace containing the <code>AdminConnection</code> is permitted (and does not need specified).
+Allows specifying prefix by adding a trailing '*' character (e.g. blog-*).
 
 ## Database
 
@@ -48,7 +56,7 @@ metadata:
   namespace: customer-ns
 spec:
   adminConnection:
-    namespace: cuppett
+    namespace: cuppett /* Optional */
     name: db1
   name: mydb
   characterSet: utf8
@@ -56,7 +64,8 @@ spec:
 </pre>
 
 Modifications to either <code>characterSet</code> or <code>collate</code> trigger
-changes to the database defaults. Updates to <code>name</code> are rejected by a
+changes to the database defaults. 
+Updates to <code>name</code> are rejected by a
 validating webhook. 
 
 ## DatabaseUser
@@ -75,7 +84,7 @@ metadata:
   namespace: customer-ns
 spec:
   adminConnection:
-    namespace: brightframe
+    namespace: cuppett /* Optional */
     name: db1
   username: cuppett
   identification:
@@ -89,10 +98,13 @@ spec:
   - databaseName: mydb
 </pre>
 
-*Note:* Optional <code>authString</code> references a <code>v1.Secret</code> created by the user.
+<code>databasePermissions</code> is a list of <code>Database</code> object names in the cluster (not names in the database server).
+This allows for maintaining correct constraints and permission controls via both systems (Kubernetes and MySQL).
+
+> NOTE: Optional <code>authString</code> references a <code>v1.Secret</code> created by the user.
 The <code>v1.Secret</code> will have <code>ownerReferences</code> updated to belong to the operator once consumed.
 This is to facilitate one-use passwords and automatically clean them up or scrub them when the user is
 removed/dropped.
 
-Operator originally built using [Operator SDK 1.7.2](https://v1-7-x.sdk.operatorframework.io/)<br />
+Operator originally built using [Operator SDK 1.3.0](https://v1-3-x.sdk.operatorframework.io/)<br />
 Operator currently built using [Operator SDK 1.19.1](https://v1-19-x.sdk.operatorframework.io/)

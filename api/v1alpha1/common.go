@@ -1,15 +1,35 @@
+/*
+Copyright 2022.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package v1alpha1
 
 import (
 	"context"
 	"fmt"
+	"github.com/go-logr/logr"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type AdminConnectionRef struct {
-	Namespace string `json:"namespace"`
+	// +kubebuilder:validation:Optional
+	// +nullable
+	Namespace string `json:"namespace,omitEmpty"`
 	Name      string `json:"name"`
 }
 
@@ -45,6 +65,30 @@ func GetSecret(ctx context.Context, client client.Client, namespace string, secr
 		return nil, err
 	}
 	return secret, nil
+}
+
+func GetAdminConnection(ctx context.Context, client client.Client, log logr.Logger, referrerNamespace string, adminConnection AdminConnectionRef) (*AdminConnection, error) {
+	toReturn := &AdminConnection{}
+	adminNamespace := referrerNamespace
+	if adminConnection.Namespace != "" {
+		adminNamespace = adminConnection.Namespace
+	}
+	adminConnectionNamespacedName := types.NamespacedName{
+		Namespace: adminNamespace,
+		Name:      adminConnection.Name,
+	}
+
+	err := client.Get(ctx, adminConnectionNamespacedName, toReturn)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			log.Info("AdminConnection resource not found. Object must be deleted")
+			return nil, err
+		}
+		// Error reading the object - requeue the request.
+		log.Error(err, "Failed to get AdminConnection")
+		return nil, err
+	}
+	return toReturn, err
 }
 
 // Escape Not all statements can be prepared with parameters (usernames/passwords).

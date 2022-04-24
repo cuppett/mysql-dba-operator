@@ -1,5 +1,5 @@
 /*
-Copyright 2021.
+Copyright 2022.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"strconv"
+	"strings"
 )
 
 // AdminConnectionSpec defines the desired state of AdminConnection
@@ -40,6 +41,9 @@ type AdminConnectionSpec struct {
 	// +kubebuilder:validation:Optional
 	// +nullable
 	AdminPassword *SecretKeySource `json:"adminPassword,omitEmpty"`
+	// +kubebuilder:validation:Optional
+	// +nullable
+	AllowedNamespaces []string `json:"allowedNamespaces,omitEmpty"`
 }
 
 // AdminConnectionStatus defines the observed state of AdminConnection
@@ -78,7 +82,7 @@ func init() {
 }
 
 // This function handles setting up all the database stuff so we're ready to talk to it.
-func (instance *AdminConnection) GetDatabaseConnection(ctx context.Context, client client.Client) (*sql.DB, error) {
+func (in *AdminConnection) GetDatabaseConnection(ctx context.Context, client client.Client) (*sql.DB, error) {
 	var err error
 	var dbConfig mysql.Config
 
@@ -86,19 +90,19 @@ func (instance *AdminConnection) GetDatabaseConnection(ctx context.Context, clie
 	dbConfig.Net = "tcp"
 	dbConfig.DBName = "mysql"
 	dbConfig.AllowNativePasswords = true
-	dbConfig.Addr = instance.Spec.Host + ":" + strconv.Itoa(int(instance.Spec.Port))
+	dbConfig.Addr = in.Spec.Host + ":" + strconv.Itoa(int(in.Spec.Port))
 	// Default the admin user to root if it was not specified by the definition
 	dbConfig.User = "root"
-	if instance.Spec.AdminUser != nil {
-		dbConfig.User, err = GetSecretRefValue(ctx, client, instance.Namespace, &instance.Spec.AdminUser.SecretKeyRef)
+	if in.Spec.AdminUser != nil {
+		dbConfig.User, err = GetSecretRefValue(ctx, client, in.Namespace, &in.Spec.AdminUser.SecretKeyRef)
 		if err != nil {
 			return nil, err
 		}
 	}
 	// Default the admin password to empty if it was not specified by the definition
 	dbConfig.Passwd = ""
-	if instance.Spec.AdminPassword != nil {
-		dbConfig.Passwd, err = GetSecretRefValue(ctx, client, instance.Namespace, &instance.Spec.AdminPassword.SecretKeyRef)
+	if in.Spec.AdminPassword != nil {
+		dbConfig.Passwd, err = GetSecretRefValue(ctx, client, in.Namespace, &in.Spec.AdminPassword.SecretKeyRef)
 		if err != nil {
 			return nil, err
 		}
@@ -117,4 +121,24 @@ func (instance *AdminConnection) GetDatabaseConnection(ctx context.Context, clie
 	}
 
 	return db, nil
+}
+
+// This function handles setting up all the database stuff so we're ready to talk to it.
+func (in *AdminConnection) AllowedNamespace(namespace string) bool {
+	if namespace == in.Namespace {
+		return true
+	}
+
+	for _, allowedNamespace := range in.Spec.AllowedNamespaces {
+		if allowedNamespace == namespace {
+			return true
+		}
+		if strings.HasSuffix(allowedNamespace, "*") {
+			if strings.HasPrefix(namespace, strings.TrimSuffix(allowedNamespace, "*")) {
+				return true
+			}
+		}
+	}
+
+	return false
 }

@@ -1,5 +1,5 @@
 /*
-Copyright 2021.
+Copyright 2022.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@ type DatabaseSpec struct {
 	AdminConnection AdminConnectionRef `json:"adminConnection"`
 	Name            string             `json:"name"`
 	// +kubebuilder:validation:Optional
+	// +nullable
 	CharacterSet string `json:"characterSet,omitEmpty"`
 	// +kubebuilder:validation:Optional
 	Collate string `json:"collate,omitEmpty"`
@@ -51,6 +52,9 @@ type DatabaseStatus struct {
 	// Indicates current state, phase or issue
 	// +kubebuilder:validation:Optional
 	Message string `json:"message,omitEmpty"`
+	// +kubebuilder:validation:Optional
+	// +nullable
+	Name string `json:"name,omitempty"`
 }
 
 // +kubebuilder:object:root=true
