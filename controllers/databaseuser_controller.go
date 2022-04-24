@@ -36,7 +36,7 @@ import (
 )
 
 const (
-	userFinalizer = "mysql.zapps.cuppett.dev/user-finalizer"
+	userFinalizer = "mysql.apps.cuppett.dev/user-finalizer"
 )
 
 // DatabaseUserReconciler reconciles a DatabaseUser object
