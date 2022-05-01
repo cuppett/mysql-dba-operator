@@ -28,10 +28,14 @@ import (
 // DatabaseSpec defines the desired state of Database
 type DatabaseSpec struct {
 	AdminConnection AdminConnectionRef `json:"adminConnection"`
-	Name            string             `json:"name"`
+	// +kubebuilder:validation:MaxLength:=64
+	// +kubebuilder:validation:MinLength:=1
+	Name string `json:"name"`
+	// +kubebuilder:validation:MaxLength:=64
 	// +kubebuilder:validation:Optional
 	// +nullable
 	CharacterSet string `json:"characterSet,omitEmpty"`
+	// +kubebuilder:validation:MaxLength:=64
 	// +kubebuilder:validation:Optional
 	Collate string `json:"collate,omitEmpty"`
 }

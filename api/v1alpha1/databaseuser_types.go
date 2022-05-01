@@ -24,6 +24,8 @@ import (
 type DatabaseUserSpec struct {
 	AdminConnection AdminConnectionRef `json:"adminConnection"`
 	// TODO: Block or allow the rename of a user (currently would just CREATE new one if changed)
+	// +kubebuilder:validation:MaxLength:=32
+	// +kubebuilder:validation:MinLength:=1
 	Username string `json:"username"`
 	// +kubebuilder:validation:Optional
 	// +nullable
@@ -66,6 +68,8 @@ type DatabaseUserStatus struct {
 	// +kubebuilder:validation:Optional
 	Message string `json:"message,omitEmpty"`
 	// Indicates the current username we're working with in the database.
+	// +kubebuilder:validation:MaxLength:=32
+	// +kubebuilder:validation:MinLength:=1
 	Username string `json:"username,omitEmpty"`
 	// +kubebuilder:validation:Optional
 	// +nullable
