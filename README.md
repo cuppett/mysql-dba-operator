@@ -21,7 +21,7 @@ metadata:
   name: db1
   namespace: cuppett
 spec:
-  host: 172.25.234.155.xip.io
+  host: 172.25.234.155.nip.io
   adminPassword:
     secretKeyRef:
       name: mysql
