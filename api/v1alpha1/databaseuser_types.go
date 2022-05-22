@@ -69,7 +69,6 @@ type DatabaseUserStatus struct {
 	Message string `json:"message,omitEmpty"`
 	// Indicates the current username we're working with in the database.
 	// +kubebuilder:validation:MaxLength:=32
-	// +kubebuilder:validation:MinLength:=1
 	Username string `json:"username,omitEmpty"`
 	// +kubebuilder:validation:Optional
 	// +nullable

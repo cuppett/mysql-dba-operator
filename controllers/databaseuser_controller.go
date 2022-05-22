@@ -18,8 +18,9 @@ package controllers
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
+	"github.com/cuppett/mysql-dba-operator/orm"
+	"gorm.io/gorm"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -51,7 +52,7 @@ type UserLoopContext struct {
 	instance        *mysqlv1alpha1.DatabaseUser
 	adminConnection *mysqlv1alpha1.AdminConnection
 	secret          *v1.Secret
-	db              *sql.DB
+	db              *gorm.DB
 }
 
 // +kubebuilder:rbac:groups=mysql.apps.cuppett.dev,resources=databaseusers,verbs=get;list;watch;create;update;patch;delete
@@ -106,7 +107,16 @@ func (r *DatabaseUserReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	if err != nil {
 		return ctrl.Result{}, err
 	} else {
-		defer loop.db.Close()
+		defer func(loop UserLoopContext) {
+			rawDatabase, err := loop.db.DB()
+			if err != nil {
+				err = rawDatabase.Close()
+			}
+			if err != nil {
+				// TODO: Increment fail counter
+				r.Log.Info(err.Error())
+			}
+		}(loop)
 	}
 
 	// Getting the secret
@@ -129,8 +139,10 @@ func (r *DatabaseUserReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			// Run finalization logic for the database. If the
 			// finalization logic fails, don't remove the finalizer so
 			// that we can retry during the next reconciliation.
-			if err := r.finalizeUser(&loop); err != nil {
-				return ctrl.Result{}, err
+			if loop.adminConnection.UserMine(loop.db, loop.instance) {
+				if err := r.finalizeUser(&loop); err != nil {
+					return ctrl.Result{}, err
+				}
 			}
 
 			// Remove stacksFinalizer. Once all finalizers have been
@@ -177,15 +189,15 @@ func (r *DatabaseUserReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			if err == nil {
 				loop.instance.Status.CreationTime = metav1.NewTime(time.Now())
 				loop.instance.Status.Message = "Created user"
-				err = r.Status().Update(ctx, loop.instance)
 			}
-		} else {
+		} else if loop.adminConnection.UserMine(loop.db, loop.instance) {
 			updated, err := r.userUpdate(ctx, &loop)
 			if err == nil && updated {
 				loop.instance.Status.SyncTime = metav1.NewTime(time.Now())
-				err = r.Status().Update(ctx, loop.instance)
 			}
 		}
+
+		err = r.Status().Update(ctx, loop.instance)
 		if err != nil {
 			r.Log.Error(err, "Failure to reconcile user.")
 		}
@@ -212,30 +224,18 @@ func (r *DatabaseUserReconciler) secretOwnershipOk(loop *UserLoopContext) bool {
 
 func (r *DatabaseUserReconciler) userExists(loop *UserLoopContext) (bool, error) {
 
-	var plugin string
+	user := orm.UserExists(loop.db, loop.instance.Spec.Username)
 
-	findStmt, err := loop.db.Prepare("SELECT plugin FROM mysql.user WHERE user = ?")
-	if err != nil {
-		r.Log.Error(err, "Failed to prepare information schema query.", "Host",
-			loop.adminConnection.Spec.Host, "User", loop.instance.Status.Username)
-		return false, err
-	}
-	defer findStmt.Close()
-
-	result := findStmt.QueryRow(loop.instance.Status.Username)
-	err = result.Scan(&plugin)
-	if err != nil && err == sql.ErrNoRows {
-		r.Log.Info("User does not exist", "Host", loop.adminConnection.Spec.Host, "Name", loop.instance.Status.Username)
+	if user == nil {
+		r.Log.Info("User does not exist or failed retrieving", "Host", loop.adminConnection.Spec.Host,
+			"Name", loop.instance.Status.Username)
 		return false, nil
-	} else if err != nil {
-		r.Log.Error(err, "Failed retrieving user", "Host", loop.adminConnection.Spec.Host, "Name", loop.instance.Status.Username)
-		return false, err
 	}
 
 	if loop.instance.Status.Identification == nil {
-		loop.instance.Status.Identification = &mysqlv1alpha1.Identification{AuthPlugin: plugin}
+		loop.instance.Status.Identification = &mysqlv1alpha1.Identification{AuthPlugin: user.Plugin}
 	} else {
-		loop.instance.Status.Identification.AuthPlugin = plugin
+		loop.instance.Status.Identification.AuthPlugin = user.Plugin
 	}
 	return true, nil
 }
@@ -261,6 +261,21 @@ func (r *DatabaseUserReconciler) userCreate(ctx context.Context, loop *UserLoopC
 		"Name", loop.instance.Status.Username)
 
 	_, err = r.grant(ctx, loop)
+
+	managedUser := orm.ManagedUser{
+		Uuid:      string(loop.instance.UID),
+		Namespace: loop.instance.Namespace,
+		Name:      loop.instance.Name,
+		Username:  loop.instance.Spec.Username,
+	}
+
+	tx := loop.db.Create(&managedUser)
+	if tx.Error != nil {
+		r.Log.Error(tx.Error, "Failed to insert managed user record.", "Host", loop.adminConnection.Spec.Host, "Name",
+			loop.instance.Spec.Username)
+	}
+	tx.Commit()
+
 	return err
 }
 
@@ -418,13 +433,17 @@ func (r *DatabaseUserReconciler) grant(ctx context.Context, loop *UserLoopContex
 			r.Log.Error(err, "Failure fetching database object.", "Database", databaseName)
 			return false, err
 		}
-		grantQuery = "GRANT ALL ON " + database.Status.Name + ".* TO '" + mysqlv1alpha1.Escape(loop.instance.Status.Username) + "'"
-		err = r.runStmt(loop, grantQuery)
-		if err != nil {
-			r.Log.Error(err, "Failed to grant user permissions", "Host",
-				loop.adminConnection.Spec.Host, "Name", loop.instance.Status.Username, "Query",
-				grantQuery)
-			return false, err
+
+		// Only grant permissions to databases in the same namespace and also under management of the operator.
+		if loop.adminConnection.DatabaseMine(loop.db, database) {
+			grantQuery = "GRANT ALL ON " + database.Status.Name + ".* TO '" + mysqlv1alpha1.Escape(loop.instance.Status.Username) + "'"
+			err = r.runStmt(loop, grantQuery)
+			if err != nil {
+				r.Log.Error(err, "Failed to grant user permissions", "Host",
+					loop.adminConnection.Spec.Host, "Name", loop.instance.Status.Username, "Query",
+					grantQuery)
+				return false, err
+			}
 		}
 	}
 
@@ -443,6 +462,7 @@ func (r *DatabaseUserReconciler) grantStatusUpdate(loop *UserLoopContext, empty 
 
 	var grant string
 	var update bool
+	var results []map[string]interface{}
 
 	showQuery := "SHOW GRANTS FOR '" + mysqlv1alpha1.Escape(loop.instance.Status.Username) + "'"
 
@@ -451,39 +471,35 @@ func (r *DatabaseUserReconciler) grantStatusUpdate(loop *UserLoopContext, empty 
 		loop.instance.Status.Grants = make([]string, 0)
 	}
 
-	rows, err := loop.db.Query(showQuery)
-	if err != nil {
-		r.Log.Error(err, "Failed to get user grants", "Host",
+	tx := loop.db.Raw(showQuery).Scan(&results)
+	if tx.Error != nil {
+		r.Log.Error(tx.Error, "Failed to get user grants", "Host",
 			loop.adminConnection.Spec.Host, "Name", loop.instance.Status.Username, "Query",
 			showQuery)
-		return false, err
+		return false, tx.Error
 	}
-	defer rows.Close()
 
-	for rows.Next() {
-		if err := rows.Scan(&grant); err != nil {
-			r.Log.Error(err, "Failure retrieving grant row from SHOW GRANT", "Host",
-				loop.adminConnection.Spec.Host, "Name", loop.instance.Status.Username, "Query",
-				showQuery)
-			return false, err
+	for _, row := range results {
+		for key := range row {
+			grant = fmt.Sprintf("%v", row[key])
+			if !contains(loop.instance.Status.Grants, grant) {
+				r.Log.Info("Existing grants do not contain this one.", "Grant", grant, "Host",
+					loop.adminConnection.Spec.Host, "Name", loop.instance.Status.Username)
+				update = true
+				loop.instance.Status.Grants = append(loop.instance.Status.Grants, grant)
+			}
 		}
-		if !contains(loop.instance.Status.Grants, grant) {
-			r.Log.Info("Existing grants do not contain this one.", "Grant", grant, "Host",
-				loop.adminConnection.Spec.Host, "Name", loop.instance.Status.Username)
-			update = true
-			loop.instance.Status.Grants = append(loop.instance.Status.Grants, grant)
-		}
-
 	}
+
 	return update, nil
 }
 
 func (r *DatabaseUserReconciler) runStmt(loop *UserLoopContext, query string, args ...interface{}) error {
-	_, err := loop.db.Exec(query, args...)
-	if err != nil {
-		r.Log.Error(err, "Failed to execute query.", "Host", loop.adminConnection.Spec.Host,
+	tx := loop.db.Exec(query, args...)
+	if tx.Error != nil {
+		r.Log.Error(tx.Error, "Failed to execute query.", "Host", loop.adminConnection.Spec.Host,
 			"Name", loop.instance.Status.Username, "Query", query)
-		return err
+		return tx.Error
 	}
 	return nil
 }
@@ -491,13 +507,15 @@ func (r *DatabaseUserReconciler) runStmt(loop *UserLoopContext, query string, ar
 // This is the finalizer which will DROP the database from the server losing all data.
 func (r *DatabaseUserReconciler) finalizeUser(loop *UserLoopContext) error {
 
-	_, err := loop.db.Exec("DROP USER IF EXISTS " + loop.instance.Status.Username)
-	if err != nil {
-		r.Log.Error(err, "Failed to delete the user")
-		return err
+	tx := loop.db.Exec("DROP USER IF EXISTS " + loop.instance.Status.Username)
+	if tx.Error != nil {
+		r.Log.Error(tx.Error, "Failed to delete the user")
 	}
 	r.Log.Info("Successfully, deleted user", "Host", loop.adminConnection.Spec.Host,
 		"Name", loop.instance.Status.Username)
+
+	loop.db.Delete(&orm.ManagedUser{}, "uuid = ?", fmt.Sprintf("%v", loop.instance.UID))
+
 	return nil
 }
 

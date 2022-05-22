@@ -11,6 +11,6 @@ configMapGenerator:
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 images:
-- name: controller
+- newTag: main
+  name: controller
   newName: quay.io/cuppett/mysql-dba-operator
-  newTag: latest

@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"github.com/go-logr/logr"
+	"gorm.io/gorm"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -75,10 +76,19 @@ func (r *AdminConnectionReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		instance.Status.Message = "Failed to connect or ping database"
 		return ctrl.Result{}, err
 	} else {
-		defer db.Close()
+		defer func(db *gorm.DB) {
+			rawDatabase, err := db.DB()
+			if err != nil {
+				err = rawDatabase.Close()
+			}
+			if err != nil {
+				r.Log.Info(err.Error())
+			}
+		}(db)
 	}
 
 	instance.Status.Message = "Successfully pinged database"
+	instance.Status.ControlDatabase = mysqlv1alpha1.DatabaseName
 	return ctrl.Result{}, nil
 }
 

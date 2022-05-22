@@ -99,6 +99,8 @@ spec:
               username:
                 description: 'TODO: Block or allow the rename of a user (currently
                   would just CREATE new one if changed)'
+                maxLength: 32
+                minLength: 1
                 type: string
             required:
             - adminConnection
@@ -182,6 +184,7 @@ spec:
               username:
                 description: Indicates the current username we're working with in
                   the database.
+                maxLength: 32
                 type: string
             required:
             - username

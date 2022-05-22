@@ -40,6 +40,41 @@ The default username is 'root' and the default password is an empty string.
 By default, only the namespace containing the <code>AdminConnection</code> is permitted (and does not need specified).
 Allows specifying prefix by adding a trailing '*' character (e.g. blog-*).
 
+With each <code>AdminConnection</code> an administrative database is created and updated to track the objects
+provisioned with this operator.
+This database helps ensure that unique UID, name and namespace databases are created and that those previously
+existing or provisioned in other namespaces are not overridden, commandeered or inadvertently removed.
+
+The following tables are created and updated as objects are created/destroyed:
+
+<pre>
+mysql> describe zz_dba_operator.managed_databases;
++---------------+-------------+------+-----+---------+-------+
+| Field         | Type        | Null | Key | Default | Extra |
++---------------+-------------+------+-----+---------+-------+
+| uuid          | varchar(36) | NO   | PRI | NULL    |       |
+| namespace     | varchar(64) | YES  |     | NULL    |       |
+| name          | varchar(64) | YES  |     | NULL    |       |
+| database_name | varchar(64) | YES  |     | NULL    |       |
+| created_at    | datetime(3) | YES  |     | NULL    |       |
+| updated_at    | datetime(3) | YES  |     | NULL    |       |
++---------------+-------------+------+-----+---------+-------+
+6 rows in set (0.00 sec)
+
+mysql> describe zz_dba_operator.managed_users;
++------------+-------------+------+-----+---------+-------+
+| Field      | Type        | Null | Key | Default | Extra |
++------------+-------------+------+-----+---------+-------+
+| uuid       | varchar(36) | NO   | PRI | NULL    |       |
+| namespace  | varchar(64) | YES  |     | NULL    |       |
+| name       | varchar(64) | YES  |     | NULL    |       |
+| username   | varchar(32) | YES  |     | NULL    |       |
+| created_at | datetime(3) | YES  |     | NULL    |       |
+| updated_at | datetime(3) | YES  |     | NULL    |       |
++------------+-------------+------+-----+---------+-------+
+6 rows in set (0.00 sec)
+</pre>
+
 ## Database
 
 Once you have an <code>AdminConnection</code> resource, you can create a <code>Database</code>

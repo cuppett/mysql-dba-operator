@@ -103,6 +103,9 @@ spec:
           status:
             description: AdminConnectionStatus defines the observed state of AdminConnection
             properties:
+              controlDatabase:
+                description: Indicates current database is set and ready
+                type: string
               message:
                 description: Indicates current state, phase or issue
                 type: string

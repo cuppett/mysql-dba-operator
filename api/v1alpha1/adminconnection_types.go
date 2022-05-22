@@ -19,12 +19,21 @@ package v1alpha1
 import (
 	"context"
 	"database/sql"
+	"github.com/cuppett/mysql-dba-operator/orm"
 	"github.com/go-sql-driver/mysql"
+	gormmysql "gorm.io/driver/mysql"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"log"
+	"os"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"strconv"
 	"strings"
+	"time"
 )
+
+const DatabaseName = "zz_dba_operator"
 
 // AdminConnectionSpec defines the desired state of AdminConnection
 type AdminConnectionSpec struct {
@@ -54,6 +63,9 @@ type AdminConnectionStatus struct {
 	// Indicates current state, phase or issue
 	// +kubebuilder:validation:Optional
 	Message string `json:"message,omitEmpty"`
+	// Indicates current database is set and ready
+	// +kubebuilder:validation:Optional
+	ControlDatabase string `json:"controlDatabase,omitEmpty"`
 }
 
 // +kubebuilder:object:root=true
@@ -81,8 +93,8 @@ func init() {
 	SchemeBuilder.Register(&AdminConnection{}, &AdminConnectionList{})
 }
 
-// This function handles setting up all the database stuff so we're ready to talk to it.
-func (in *AdminConnection) GetDatabaseConnection(ctx context.Context, client client.Client) (*sql.DB, error) {
+// GetDatabaseConnection This function handles setting up all the database stuff, so we're ready to talk to it.
+func (in *AdminConnection) GetDatabaseConnection(ctx context.Context, client client.Client) (*gorm.DB, error) {
 	var err error
 	var dbConfig mysql.Config
 
@@ -116,14 +128,69 @@ func (in *AdminConnection) GetDatabaseConnection(ctx context.Context, client cli
 	// Open doesn't open a connection. Validate DSN data and our connection
 	err = db.Ping()
 	if err != nil {
-		defer db.Close()
+		defer func(db *sql.DB) {
+			err := db.Close()
+			if err != nil {
+				// TODO: Increment a fail counter here
+			}
+		}(db)
 		return nil, err
 	}
 
-	return db, nil
+	newLogger := logger.New(
+		log.New(os.Stdout, "\r\n", log.LstdFlags), // io writer
+		logger.Config{
+			SlowThreshold:             time.Second,  // Slow SQL threshold
+			LogLevel:                  logger.Error, // Log level
+			IgnoreRecordNotFoundError: false,        // Ignore ErrRecordNotFound error for logger
+			Colorful:                  false,        // Disable color
+		},
+	)
+	gormDB, err := gorm.Open(gormmysql.New(gormmysql.Config{Conn: db}), &gorm.Config{
+		Logger: newLogger,
+	})
+	if err != nil {
+		defer func(db *sql.DB) {
+			err := db.Close()
+			if err != nil {
+				// TODO: Increment a fail counter here
+			}
+		}(db)
+		return nil, err
+	}
+
+	// Creating and switching to the control database.
+	in.switchDatabase(ctx, gormDB)
+
+	err = gormDB.AutoMigrate(&orm.ManagedDatabase{}, &orm.ManagedUser{})
+	if err != nil {
+		defer func(db *sql.DB) {
+			err := db.Close()
+			if err != nil {
+				// TODO: Increment a fail counter here
+			}
+		}(db)
+		return nil, err
+	}
+
+	return gormDB, nil
 }
 
-// This function handles setting up all the database stuff so we're ready to talk to it.
+// switchDatabase Ensuring the control database exists and also that we are using it on this connection going forward.
+func (in *AdminConnection) switchDatabase(ctx context.Context, gormDB *gorm.DB) {
+
+	var createQuery string
+
+	// No specific rules about the collation or character sets here yet, just taking the server defaults.
+	// TODO: Could allow setting these (and the name) in a generic Config class.
+	createQuery = "CREATE DATABASE IF NOT EXISTS " + DatabaseName
+	gormDB.Exec(createQuery)
+
+	createQuery = "USE " + DatabaseName
+	gormDB.Exec(createQuery)
+}
+
+// AllowedNamespace This function handles setting up all the database stuff so we're ready to talk to it.
 func (in *AdminConnection) AllowedNamespace(namespace string) bool {
 	if namespace == in.Namespace {
 		return true
@@ -140,5 +207,45 @@ func (in *AdminConnection) AllowedNamespace(namespace string) bool {
 		}
 	}
 
+	return false
+}
+
+func (in *AdminConnection) DatabaseMine(gormDB *gorm.DB, database *Database) bool {
+
+	var managedDatabase orm.ManagedDatabase
+
+	// If it doesn't exist, go ahead and take it!
+	if orm.DatabaseExists(gormDB, database.Spec.Name) == nil {
+		return true
+	}
+
+	// If it does exist, let's check the triple after fetching by UID
+	gormDB.First(&managedDatabase, "uuid = ?", string(database.UID))
+	if managedDatabase.DatabaseName == database.Spec.Name &&
+		managedDatabase.Name == database.Name &&
+		managedDatabase.Namespace == database.Namespace {
+		return true
+	}
+	gormDB.Logger.Info(context.TODO(), "This database is NOT mine: "+managedDatabase.Name)
+	return false
+}
+
+func (in *AdminConnection) UserMine(gormDB *gorm.DB, user *DatabaseUser) bool {
+
+	var managedUser orm.ManagedUser
+
+	// If it doesn't exist, go ahead and take it!
+	if orm.UserExists(gormDB, user.Spec.Username) == nil {
+		return true
+	}
+
+	// If it does exist, let's check the triple after fetching by UID
+	gormDB.First(&managedUser, "uuid = ?", string(user.UID))
+	if managedUser.Username == user.Spec.Username &&
+		managedUser.Name == user.Name &&
+		managedUser.Namespace == user.Namespace {
+		return true
+	}
+	gormDB.Logger.Info(context.TODO(), "This user is NOT mine: "+managedUser.Username)
 	return false
 }

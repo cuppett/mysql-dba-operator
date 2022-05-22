@@ -46,11 +46,15 @@ spec:
                 - name
                 type: object
               characterSet:
+                maxLength: 64
                 nullable: true
                 type: string
               collate:
+                maxLength: 64
                 type: string
               name:
+                maxLength: 64
+                minLength: 1
                 type: string
             required:
             - adminConnection

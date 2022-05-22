@@ -18,10 +18,12 @@ package controllers
 
 import (
 	"context"
-	"database/sql"
+	"fmt"
 	mysqlv1alpha1 "github.com/cuppett/mysql-dba-operator/api/v1alpha1"
+	"github.com/cuppett/mysql-dba-operator/orm"
 	"github.com/go-logr/logr"
 	_ "github.com/go-sql-driver/mysql"
+	"gorm.io/gorm"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -43,11 +45,11 @@ type DatabaseReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-// Custom variables used for the reconciliation loops
+// DatabaseLoopContext Custom variables used for the reconciliation loops
 type DatabaseLoopContext struct {
 	instance        *mysqlv1alpha1.Database
 	adminConnection *mysqlv1alpha1.AdminConnection
-	db              *sql.DB
+	db              *gorm.DB
 }
 
 // +kubebuilder:rbac:groups=mysql.apps.cuppett.dev,resources=databases,verbs=get;list;watch;create;update;patch;delete
@@ -101,7 +103,16 @@ func (r *DatabaseReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	if err != nil {
 		return ctrl.Result{}, err
 	} else {
-		defer loop.db.Close()
+		defer func(loop DatabaseLoopContext) {
+			rawDatabase, err := loop.db.DB()
+			if err != nil {
+				err = rawDatabase.Close()
+			}
+			if err != nil {
+				// TODO: Increment fail counter
+				r.Log.Info(err.Error())
+			}
+		}(loop)
 	}
 
 	// Check if the database instance is marked to be deleted, which is
@@ -112,8 +123,10 @@ func (r *DatabaseReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 			// Run finalization logic for the database. If the
 			// finalization logic fails, don't remove the finalizer so
 			// that we can retry during the next reconciliation.
-			if err := r.finalizeDatabase(&loop); err != nil {
-				return ctrl.Result{}, err
+			if loop.adminConnection.DatabaseMine(loop.db, loop.instance) {
+				if err := r.finalizeDatabase(&loop); err != nil {
+					return ctrl.Result{}, err
+				}
 			}
 
 			// Remove stacksFinalizer. Once all finalizers have been
@@ -142,27 +155,27 @@ func (r *DatabaseReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 			return ctrl.Result{}, err
 		}
 
+		loop.instance.Status.Name = loop.instance.Spec.Name
+		loop.instance.Status.SyncTime = metav1.NewTime(time.Now())
+
 		if !exists {
 			created, err := r.databaseCreate(&loop)
 			if err == nil && created {
 				loop.instance.Status.CreationTime = metav1.NewTime(time.Now())
 				loop.instance.Status.Message = "Created database"
-				loop.instance.Status.Name = loop.instance.Spec.Name
-				err = r.Status().Update(ctx, loop.instance)
-				if err != nil {
-					r.Log.Error(err, "Failure creating database.", "Name", loop.instance.Spec.Name)
-				}
 			}
-		} else {
+		} else if loop.adminConnection.DatabaseMine(loop.db, loop.instance) {
 			updated, err := r.databaseUpdate(&loop)
 			if err == nil && updated {
-				loop.instance.Status.SyncTime = metav1.NewTime(time.Now())
 				loop.instance.Status.Message = "Altered database"
-				err = r.Status().Update(ctx, loop.instance)
-				if err != nil {
-					r.Log.Error(err, "Failure recording difference.")
-				}
 			}
+		} else {
+			loop.instance.Status.Message = "No permission to update this database."
+		}
+
+		err = r.Status().Update(ctx, loop.instance)
+		if err != nil {
+			r.Log.Error(err, "Failure recording status.")
 		}
 	}
 
@@ -171,32 +184,20 @@ func (r *DatabaseReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 func (r *DatabaseReconciler) databaseExists(loop *DatabaseLoopContext) (bool, error) {
 
-	var collate string
-	var characterSet string
-
-	findStmt, err := loop.db.Prepare("SELECT DEFAULT_CHARACTER_SET_NAME, DEFAULT_COLLATION_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME=?")
-	if err != nil {
-		r.Log.Error(err, "Failed to prepare information schema query.", "Host",
-			loop.adminConnection.Spec.Host, "Database", loop.instance.Spec.Name)
-		return false, err
-	}
-	defer findStmt.Close()
-
-	result := findStmt.QueryRow(loop.instance.Spec.Name)
-	err = result.Scan(&characterSet, &collate)
-	if err != nil {
+	schema := orm.DatabaseExists(loop.db, loop.instance.Spec.Name)
+	if schema == nil {
 		r.Log.Info("Database does not exist", "Host", loop.adminConnection.Spec.Host,
 			"Name", loop.instance.Spec.Name)
 		return false, nil
 	}
 
-	r.Log.Info("Successfully retrieved database", "Host", loop.adminConnection.Spec.Host,
+	r.Log.Info("Successfully retrieved database details", "Host", loop.adminConnection.Spec.Host,
 		"Name", loop.instance.Spec.Name)
-	if loop.instance.Status.Collate == "" || loop.instance.Status.Collate != collate {
-		loop.instance.Status.Collate = collate
+	if loop.instance.Status.Collate == "" || loop.instance.Status.Collate != schema.DefaultCollation {
+		loop.instance.Status.Collate = schema.DefaultCollation
 	}
-	if loop.instance.Status.CharacterSet == "" || loop.instance.Status.CharacterSet != characterSet {
-		loop.instance.Status.CharacterSet = characterSet
+	if loop.instance.Status.CharacterSet == "" || loop.instance.Status.CharacterSet != schema.DefaultCharacterSet {
+		loop.instance.Status.CharacterSet = schema.DefaultCharacterSet
 	}
 	return true, nil
 }
@@ -221,19 +222,14 @@ func (r *DatabaseReconciler) databaseUpdate(loop *DatabaseLoopContext) (bool, er
 	if requireAlter {
 		r.Log.Info("Required to alter database", "Host", loop.adminConnection.Spec.Host, "Name",
 			loop.instance.Spec.Name, "Query", alterQuery)
-		_, err := loop.db.Exec(alterQuery)
-		if err != nil {
-			r.Log.Error(err, "Failed to alter database.", "Host", loop.adminConnection.Spec.Host,
+		tx := loop.db.Exec(alterQuery)
+		if tx.Error != nil {
+			r.Log.Error(tx.Error, "Failed to alter database.", "Host", loop.adminConnection.Spec.Host,
 				"Name", loop.instance.Spec.Name)
-			return false, err
+			return false, tx.Error
 		}
-
 		r.Log.Info("Successfully altered database", "Host", loop.adminConnection.Spec.Host,
 			"Name", loop.instance.Spec.Name)
-		if err != nil {
-			r.Log.Error(err, "Failure recording altered state.")
-			return false, err
-		}
 	}
 	_, err := r.databaseExists(loop)
 	return requireAlter, err
@@ -253,12 +249,26 @@ func (r *DatabaseReconciler) databaseCreate(loop *DatabaseLoopContext) (bool, er
 		loop.instance.Status.Collate = loop.instance.Spec.Collate
 	}
 
-	_, err := loop.db.Exec(createQuery)
-	if err != nil {
-		r.Log.Error(err, "Failed to create database.", "Host", loop.adminConnection.Spec.Host, "Name",
+	tx := loop.db.Exec(createQuery)
+	if tx.Error != nil {
+		r.Log.Error(tx.Error, "Failed to create database.", "Host", loop.adminConnection.Spec.Host, "Name",
 			loop.instance.Spec.Name, "Query", createQuery)
-		return false, err
+		return false, tx.Error
 	}
+
+	managedDatabase := orm.ManagedDatabase{
+		Uuid:         string(loop.instance.UID),
+		Namespace:    loop.instance.Namespace,
+		Name:         loop.instance.Name,
+		DatabaseName: loop.instance.Spec.Name,
+	}
+
+	tx = tx.Create(&managedDatabase)
+	if tx.Error != nil {
+		r.Log.Error(tx.Error, "Failed to insert managed record.", "Host", loop.adminConnection.Spec.Host, "Name",
+			loop.instance.Spec.Name)
+	}
+	tx.Commit()
 
 	exists, err := r.databaseExists(loop)
 	return exists, err
@@ -267,11 +277,14 @@ func (r *DatabaseReconciler) databaseCreate(loop *DatabaseLoopContext) (bool, er
 // This is the finalizer which will DROP the database from the server losing all data.
 func (r *DatabaseReconciler) finalizeDatabase(loop *DatabaseLoopContext) error {
 
-	_, err := loop.db.Exec("DROP DATABASE IF EXISTS " + loop.instance.Spec.Name)
-	if err != nil {
-		r.Log.Error(err, "Failed to delete the database")
+	tx := loop.db.Exec("DROP DATABASE IF EXISTS " + loop.instance.Spec.Name)
+	if tx.Error != nil {
+		r.Log.Error(tx.Error, "Failed to delete the database")
 	}
 	r.Log.Info("Successfully, deleted database", "Host", loop.adminConnection.Spec.Host, "Name", loop.instance.Spec.Name)
+
+	loop.db.Delete(&orm.ManagedDatabase{}, "uuid = ?", fmt.Sprintf("%v", loop.instance.UID))
+
 	return nil
 }
 
