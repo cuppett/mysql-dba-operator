@@ -8,7 +8,7 @@ require (
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.19.0
 	gorm.io/driver/mysql v1.3.3
-	gorm.io/gorm v1.23.5
+	gorm.io/gorm v1.23.6
 	k8s.io/api v0.23.0
 	k8s.io/apimachinery v0.23.0
 	k8s.io/client-go v0.23.0
