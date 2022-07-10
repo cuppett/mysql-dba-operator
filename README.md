@@ -131,6 +131,11 @@ spec:
         key: password
   databasePermissions:
   - databaseName: mydb
+    grants: /* Optional */
+    - SELECT
+    - INSERT
+    - UPDATE
+    - DELETE
 </pre>
 
 <code>databasePermissions</code> is a list of <code>Database</code> object names in the cluster (not names in the database server).

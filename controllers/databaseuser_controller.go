@@ -26,6 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -436,7 +437,18 @@ func (r *DatabaseUserReconciler) grant(ctx context.Context, loop *UserLoopContex
 
 		// Only grant permissions to databases in the same namespace and also under management of the operator.
 		if loop.adminConnection.DatabaseMine(loop.db, database) {
-			grantQuery = "GRANT ALL ON " + database.Status.Name + ".* TO '" + mysqlv1alpha1.Escape(loop.instance.Status.Username) + "'"
+			grantQuery = "GRANT "
+			if len(permission.Grants) == 0 {
+				grantQuery += "ALL"
+			} else {
+				for i, indivPermission := range permission.Grants {
+					if i > 0 {
+						grantQuery += ", "
+					}
+					grantQuery += strings.ToUpper(indivPermission)
+				}
+			}
+			grantQuery += " ON " + database.Status.Name + ".* TO '" + mysqlv1alpha1.Escape(loop.instance.Status.Username) + "'"
 			err = r.runStmt(loop, grantQuery)
 			if err != nil {
 				r.Log.Error(err, "Failed to grant user permissions", "Host",

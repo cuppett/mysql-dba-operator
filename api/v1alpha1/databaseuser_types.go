@@ -38,6 +38,9 @@ type DatabaseUserSpec struct {
 
 type DatabasePermission struct {
 	Name string `json:"databaseName"`
+	// Allows specifying a specific permission list here
+	// +kubebuilder:validation:Optional
+	Grants []string `json:"grants"`
 }
 
 type Identification struct {
