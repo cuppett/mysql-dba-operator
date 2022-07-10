@@ -147,4 +147,4 @@ This is to facilitate one-use passwords and automatically clean them up or scrub
 removed/dropped.
 
 Operator originally built using [Operator SDK 1.3.0](https://v1-3-x.sdk.operatorframework.io/)<br />
-Operator currently built using [Operator SDK 1.19.1](https://v1-19-x.sdk.operatorframework.io/)
+Operator currently built using [Operator SDK 1.21.0](https://v1-21-x.sdk.operatorframework.io/docs/upgrading-sdk-version/v1.21.0/)

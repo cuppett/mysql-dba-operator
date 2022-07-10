@@ -52,6 +52,11 @@ spec:
                   properties:
                     databaseName:
                       type: string
+                    grants:
+                      description: Allows specifying a specific permission list here
+                      items:
+                        type: string
+                      type: array
                   required:
                   - databaseName
                   type: object
@@ -120,6 +125,11 @@ spec:
                   properties:
                     databaseName:
                       type: string
+                    grants:
+                      description: Allows specifying a specific permission list here
+                      items:
+                        type: string
+                      type: array
                   required:
                   - databaseName
                   type: object
