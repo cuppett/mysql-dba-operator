@@ -1,5 +1,5 @@
 /*
-Copyright 2021.
+Copyright 2022.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -34,6 +34,29 @@ type DatabaseUserSpec struct {
 	// +kubebuilder:validation:Optional
 	// +nullable
 	DatabaseList []DatabasePermission `json:"databasePermissions,omitEmpty"`
+	// +kubebuilder:validation:Optional
+	// +nullable
+	TlsOptions TlsOptions `json:"tlsOptions,omitEmpty"`
+}
+
+type TlsOptions struct {
+	// Whether REQUIRE SSL or NONE
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default:=false
+	Required bool `json:"required"`
+	// Indicates a valid x509 certificate is required. Implies REQUIRE SSL. Cannot be combined with other TLS options.
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default:=false
+	X509 bool `json:"x509"`
+	// The account must use TLS and must have a valid X509 certificate. Also, the Certificate Authority must be the one specified via the string issuer. This option implies REQUIRE X509. This option can be combined with the SUBJECT, and CIPHER.
+	// +kubebuilder:validation:Optional
+	Issuer string `json:"issuer"`
+	// The account must use TLS and must have a valid X509 certificate. Also, the certificate's Subject must be the one specified via the string subject. This option implies REQUIRE X509. This option can be combined with the ISSUER, and CIPHER.
+	// +kubebuilder:validation:Optional
+	Subject string `json:"subject"`
+	// The account must use TLS, but no valid X509 certificate is required. Also, the encryption used for the connection must use a specific cipher method specified in the string cipher. This option implies REQUIRE SSL. This option can be combined with the ISSUER, and SUBJECT.
+	// +kubebuilder:validation:Optional
+	Cipher string `json:"cipher"`
 }
 
 type DatabasePermission struct {

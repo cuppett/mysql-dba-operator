@@ -101,6 +101,38 @@ spec:
                       by the auth_plugin
                     type: boolean
                 type: object
+              tlsOptions:
+                nullable: true
+                properties:
+                  cipher:
+                    description: The account must use TLS, but no valid X509 certificate
+                      is required. Also, the encryption used for the connection must
+                      use a specific cipher method specified in the string cipher.
+                      This option implies REQUIRE SSL. This option can be combined
+                      with the ISSUER, and SUBJECT.
+                    type: string
+                  issuer:
+                    description: The account must use TLS and must have a valid X509
+                      certificate. Also, the Certificate Authority must be the one
+                      specified via the string issuer. This option implies REQUIRE
+                      X509. This option can be combined with the SUBJECT, and CIPHER.
+                    type: string
+                  required:
+                    default: false
+                    description: Whether REQUIRE SSL or NONE
+                    type: boolean
+                  subject:
+                    description: The account must use TLS and must have a valid X509
+                      certificate. Also, the certificate's Subject must be the one
+                      specified via the string subject. This option implies REQUIRE
+                      X509. This option can be combined with the ISSUER, and CIPHER.
+                    type: string
+                  x509:
+                    default: false
+                    description: Indicates a valid x509 certificate is required. Implies
+                      REQUIRE SSL. Cannot be combined with other TLS options.
+                    type: boolean
+                type: object
               username:
                 description: 'TODO: Block or allow the rename of a user (currently
                   would just CREATE new one if changed)'
