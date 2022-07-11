@@ -18,6 +18,7 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"reflect"
 )
 
 // DatabaseUserSpec defines the desired state of DatabaseUser
@@ -118,13 +119,5 @@ func (r *DatabaseUser) PermissionListEqual() bool {
 	if len(r.Status.Grants)-1 != len(r.Spec.DatabaseList) {
 		return false
 	}
-	if len(r.Spec.DatabaseList) != len(r.Status.DatabaseList) {
-		return false
-	}
-	for i, elem := range r.Spec.DatabaseList {
-		if elem.Name != r.Status.DatabaseList[i].Name {
-			return false
-		}
-	}
-	return true
+	return reflect.DeepEqual(r.Spec.DatabaseList, r.Status.DatabaseList)
 }
