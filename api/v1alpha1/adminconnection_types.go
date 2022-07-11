@@ -221,13 +221,12 @@ func (in *AdminConnection) DatabaseMine(gormDB *gorm.DB, database *Database) boo
 	}
 
 	// If it does exist, let's check the triple after fetching by UID
-	gormDB.First(&managedDatabase, "uuid = ?", string(database.UID))
+	gormDB.Limit(1).Find(&managedDatabase, "uuid = ?", string(database.UID))
 	if managedDatabase.DatabaseName == database.Spec.Name &&
 		managedDatabase.Name == database.Name &&
 		managedDatabase.Namespace == database.Namespace {
 		return true
 	}
-	gormDB.Logger.Info(context.TODO(), "This database is NOT mine: "+managedDatabase.Name)
 	return false
 }
 
@@ -241,12 +240,11 @@ func (in *AdminConnection) UserMine(gormDB *gorm.DB, user *DatabaseUser) bool {
 	}
 
 	// If it does exist, let's check the triple after fetching by UID
-	gormDB.First(&managedUser, "uuid = ?", string(user.UID))
+	gormDB.Limit(1).Find(&managedUser, "uuid = ?", string(user.UID))
 	if managedUser.Username == user.Spec.Username &&
 		managedUser.Name == user.Name &&
 		managedUser.Namespace == user.Namespace {
 		return true
 	}
-	gormDB.Logger.Info(context.TODO(), "This user is NOT mine: "+managedUser.Username)
 	return false
 }
