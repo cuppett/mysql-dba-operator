@@ -101,6 +101,14 @@ spec:
                       by the auth_plugin
                     type: boolean
                 type: object
+              tlsOptions:
+                nullable: true
+                properties:
+                  required:
+                    default: false
+                    description: Whether REQUIRE SSL or NONE
+                    type: boolean
+                type: object
               username:
                 description: 'TODO: Block or allow the rename of a user (currently
                   would just CREATE new one if changed)'
@@ -191,6 +199,14 @@ spec:
                 format: date-time
                 nullable: true
                 type: string
+              tlsOptions:
+                nullable: true
+                properties:
+                  required:
+                    default: false
+                    description: Whether REQUIRE SSL or NONE
+                    type: boolean
+                type: object
               username:
                 description: Indicates the current username we're working with in
                   the database.

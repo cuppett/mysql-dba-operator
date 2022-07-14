@@ -35,6 +35,9 @@ type DatabaseUserSpec struct {
 	// +kubebuilder:validation:Optional
 	// +nullable
 	DatabaseList []DatabasePermission `json:"databasePermissions,omitEmpty"`
+	// +kubebuilder:validation:Optional
+	// +nullable
+	TlsOptions TlsOptions `json:"tlsOptions,omitEmpty"`
 }
 
 type DatabasePermission struct {
@@ -57,6 +60,13 @@ type Identification struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default:=true
 	ClearText bool `json:"clearText"`
+}
+
+type TlsOptions struct {
+	// Whether REQUIRE SSL or NONE
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default:=false
+	Required bool `json:"required"`
 }
 
 // DatabaseUserStatus defines the observed state of DatabaseUser
@@ -87,6 +97,9 @@ type DatabaseUserStatus struct {
 	// +kubebuilder:validation:Optional
 	// +nullable
 	IdentificationResourceVersion string `json:"identificationResourceVersion,omitEmpty"`
+	// +kubebuilder:validation:Optional
+	// +nullable
+	TlsOptions TlsOptions `json:"tlsOptions,omitEmpty"`
 }
 
 // +kubebuilder:object:root=true

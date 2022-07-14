@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"reflect"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"strings"
 	"time"
@@ -393,10 +394,19 @@ func (r *DatabaseUserReconciler) userDetailString(ctx context.Context, loop *Use
 			}
 		}
 
+		if !reflect.DeepEqual(loop.instance.Spec.TlsOptions, loop.instance.Status.TlsOptions) {
+			if loop.instance.Spec.TlsOptions.Required {
+				queryFragment += " REQUIRE SSL"
+			} else {
+				queryFragment += " REQUIRE NONE"
+			}
+		}
+
 		// If this update pass is successful, our identification details will match.
 		loop.instance.Status.IdentificationResourceVersion = loop.secret.ResourceVersion
 		loop.instance.Status.Identification = loop.instance.Spec.Identification
 		loop.instance.Status.Identification.AuthPlugin = authPlugin // For the case where Spec=""
+		loop.instance.Status.TlsOptions = loop.instance.Spec.TlsOptions
 	}
 
 	return queryFragment, nil

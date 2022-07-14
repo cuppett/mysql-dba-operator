@@ -103,6 +103,7 @@ func (in *AdminConnection) GetDatabaseConnection(ctx context.Context, client cli
 	dbConfig.DBName = "mysql"
 	dbConfig.ParseTime = true
 	dbConfig.AllowNativePasswords = true
+	dbConfig.TLSConfig = "preferred"
 	dbConfig.Addr = in.Spec.Host + ":" + strconv.Itoa(int(in.Spec.Port))
 	// Default the admin user to root if it was not specified by the definition
 	dbConfig.User = "root"
