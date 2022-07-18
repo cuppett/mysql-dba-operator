@@ -1,5 +1,5 @@
 /*
-Copyright 2021.
+Copyright 2022.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -31,7 +31,7 @@ type DatabaseUserSpec struct {
 	// +kubebuilder:validation:Optional
 	// +nullable
 	Identification *Identification `json:"identification,omitEmpty"`
-	// Currently set to allow all via GRANT ALL PRIVILEGES for the databases listed here
+	// GRANT PRIVILEGES to the databases listed here
 	// +kubebuilder:validation:Optional
 	// +nullable
 	DatabaseList []DatabasePermission `json:"databasePermissions,omitEmpty"`
@@ -42,7 +42,7 @@ type DatabaseUserSpec struct {
 
 type DatabasePermission struct {
 	Name string `json:"databaseName"`
-	// Allows specifying a specific permission list here
+	// Allows specifying a specific permission list here (empty string indicates ALL)
 	// +kubebuilder:validation:Optional
 	Grants []string `json:"grants"`
 }

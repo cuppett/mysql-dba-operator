@@ -46,14 +46,14 @@ spec:
                 - name
                 type: object
               databasePermissions:
-                description: Currently set to allow all via GRANT ALL PRIVILEGES for
-                  the databases listed here
+                description: GRANT PRIVILEGES to the databases listed here
                 items:
                   properties:
                     databaseName:
                       type: string
                     grants:
                       description: Allows specifying a specific permission list here
+                        (empty string indicates ALL)
                       items:
                         type: string
                       type: array
@@ -135,6 +135,7 @@ spec:
                       type: string
                     grants:
                       description: Allows specifying a specific permission list here
+                        (empty string indicates ALL)
                       items:
                         type: string
                       type: array
