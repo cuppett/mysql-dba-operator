@@ -21,6 +21,8 @@ import (
 	"time"
 )
 
+const DatabaseName = "zz_dba_operator"
+
 type ManagedDatabase struct {
 	Uuid         string `gorm:"primaryKey;size:36"`
 	Namespace    string `gorm:"size:64"`
@@ -30,6 +32,10 @@ type ManagedDatabase struct {
 	UpdatedAt    time.Time
 }
 
+func (ManagedDatabase) TableName() string {
+	return DatabaseName + ".managed_databases"
+}
+
 type ManagedUser struct {
 	Uuid      string `gorm:"primaryKey;size:36"`
 	Namespace string `gorm:"size:64"`
@@ -37,6 +43,10 @@ type ManagedUser struct {
 	Username  string `gorm:"size:32"`
 	CreatedAt time.Time
 	UpdatedAt time.Time
+}
+
+func (ManagedUser) TableName() string {
+	return DatabaseName + ".managed_users"
 }
 
 type DatabaseSchema struct {

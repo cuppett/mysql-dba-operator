@@ -18,7 +18,9 @@ package main
 
 import (
 	"flag"
+	"github.com/cuppett/mysql-dba-operator/orm"
 	"go.uber.org/zap/zapcore"
+	"k8s.io/apimachinery/pkg/types"
 	"os"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -53,6 +55,8 @@ func main() {
 	var metricsAddr string
 	var enableLeaderElection bool
 	var probeAddr string
+	var connectionCache = make(map[types.UID]*orm.ConnectionDefinition)
+
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
@@ -81,9 +85,10 @@ func main() {
 	}
 
 	if err = (&controllers.DatabaseReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("Database"),
-		Scheme: mgr.GetScheme(),
+		Client:      mgr.GetClient(),
+		Log:         ctrl.Log.WithName("controllers").WithName("Database"),
+		Scheme:      mgr.GetScheme(),
+		Connections: connectionCache,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Database")
 		os.Exit(1)
@@ -93,17 +98,19 @@ func main() {
 		os.Exit(1)
 	}
 	if err = (&controllers.DatabaseUserReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("DatabaseUser"),
-		Scheme: mgr.GetScheme(),
+		Client:      mgr.GetClient(),
+		Log:         ctrl.Log.WithName("controllers").WithName("DatabaseUser"),
+		Scheme:      mgr.GetScheme(),
+		Connections: connectionCache,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "DatabaseUser")
 		os.Exit(1)
 	}
 	if err = (&controllers.AdminConnectionReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("AdminConnection"),
-		Scheme: mgr.GetScheme(),
+		Client:      mgr.GetClient(),
+		Log:         ctrl.Log.WithName("controllers").WithName("AdminConnection"),
+		Scheme:      mgr.GetScheme(),
+		Connections: connectionCache,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "AdminConnection")
 		os.Exit(1)

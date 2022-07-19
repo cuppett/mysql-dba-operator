@@ -18,11 +18,12 @@ package controllers
 
 import (
 	"context"
+	"github.com/cuppett/mysql-dba-operator/orm"
 	"github.com/go-logr/logr"
-	"gorm.io/gorm"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"time"
@@ -33,8 +34,9 @@ import (
 // AdminConnectionReconciler reconciles a AdminConnection object
 type AdminConnectionReconciler struct {
 	client.Client
-	Log    logr.Logger
-	Scheme *runtime.Scheme
+	Log         logr.Logger
+	Scheme      *runtime.Scheme
+	Connections map[types.UID]*orm.ConnectionDefinition
 }
 
 // +kubebuilder:rbac:groups=mysql.apps.cuppett.dev,resources=adminconnections,verbs=get;list;watch;create;update;patch;delete
@@ -71,24 +73,14 @@ func (r *AdminConnectionReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	defer r.Status().Update(ctx, instance)
 
 	// Establish the database connection
-	db, err := instance.GetDatabaseConnection(ctx, r.Client)
+	_, err = instance.GetDatabaseConnection(ctx, r.Client, r.Connections)
 	if err != nil {
 		instance.Status.Message = "Failed to connect or ping database"
 		return ctrl.Result{}, err
-	} else {
-		defer func(db *gorm.DB) {
-			rawDatabase, err := db.DB()
-			if err != nil {
-				err = rawDatabase.Close()
-			}
-			if err != nil {
-				r.Log.Info(err.Error())
-			}
-		}(db)
 	}
 
 	instance.Status.Message = "Successfully pinged database"
-	instance.Status.ControlDatabase = mysqlv1alpha1.DatabaseName
+	instance.Status.ControlDatabase = orm.DatabaseName
 	return ctrl.Result{}, nil
 }
 

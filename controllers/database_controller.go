@@ -41,8 +41,9 @@ const (
 // DatabaseReconciler reconciles a Database object
 type DatabaseReconciler struct {
 	client.Client
-	Log    logr.Logger
-	Scheme *runtime.Scheme
+	Log         logr.Logger
+	Scheme      *runtime.Scheme
+	Connections map[types.UID]*orm.ConnectionDefinition
 }
 
 // DatabaseLoopContext Custom variables used for the reconciliation loops
@@ -99,20 +100,9 @@ func (r *DatabaseReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	// Establish the database connection
-	loop.db, err = loop.adminConnection.GetDatabaseConnection(ctx, r.Client)
+	loop.db, err = loop.adminConnection.GetDatabaseConnection(ctx, r.Client, r.Connections)
 	if err != nil {
 		return ctrl.Result{}, err
-	} else {
-		defer func(loop DatabaseLoopContext) {
-			rawDatabase, err := loop.db.DB()
-			if err != nil {
-				err = rawDatabase.Close()
-			}
-			if err != nil {
-				// TODO: Increment fail counter
-				r.Log.Info(err.Error())
-			}
-		}(loop)
 	}
 
 	// Check if the database instance is marked to be deleted, which is

@@ -25,15 +25,15 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"log"
 	"os"
+	"reflect"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"strconv"
 	"strings"
 	"time"
 )
-
-const DatabaseName = "zz_dba_operator"
 
 // AdminConnectionSpec defines the desired state of AdminConnection
 type AdminConnectionSpec struct {
@@ -93,8 +93,7 @@ func init() {
 	SchemeBuilder.Register(&AdminConnection{}, &AdminConnectionList{})
 }
 
-// GetDatabaseConnection This function handles setting up all the database stuff, so we're ready to talk to it.
-func (in *AdminConnection) GetDatabaseConnection(ctx context.Context, client client.Client) (*gorm.DB, error) {
+func (in *AdminConnection) getDbConfig(ctx context.Context, client client.Client) (mysql.Config, error) {
 	var err error
 	var dbConfig mysql.Config
 
@@ -109,18 +108,74 @@ func (in *AdminConnection) GetDatabaseConnection(ctx context.Context, client cli
 	dbConfig.User = "root"
 	if in.Spec.AdminUser != nil {
 		dbConfig.User, err = GetSecretRefValue(ctx, client, in.Namespace, &in.Spec.AdminUser.SecretKeyRef)
+	}
+
+	if err == nil {
+		// Default the admin password to empty if it was not specified by the definition
+		dbConfig.Passwd = ""
+		if in.Spec.AdminPassword != nil {
+			dbConfig.Passwd, err = GetSecretRefValue(ctx, client, in.Namespace, &in.Spec.AdminPassword.SecretKeyRef)
+		}
+	}
+	return dbConfig, err
+}
+
+// GetDatabaseConnection This function handles setting up all the database stuff, so we're ready to talk to it.
+func (in *AdminConnection) GetDatabaseConnection(ctx context.Context, client client.Client, cache map[types.UID]*orm.ConnectionDefinition) (*gorm.DB, error) {
+
+	// Generate the current config we'd use for fresh connections.
+	// This includes protocols, usernames, passwords, etc.
+	dbConfig, err := in.getDbConfig(ctx, client)
+	if err != nil {
+		return nil, err
+	}
+
+	conn, ok := cache[in.UID]
+
+	var rawDatabase *sql.DB
+	newConnection := true
+
+	// Need to DeepEquals the dbConfig against the existing connection.
+	// Do a ping/close depending on if there's a match or a difference and an existing entry
+	if ok && reflect.DeepEqual(conn.Config, dbConfig) {
+		// Do a ping if there is a match
+		rawDatabase, err = conn.DB.DB()
+		if err == nil {
+			err = rawDatabase.Ping()
+			if err == nil {
+				newConnection = false
+			}
+		}
+	} else if ok {
+		// Exists, but the configuration is no longer equal.
+		// Do a close to get out of that pool.
+		rawDatabase, err = conn.DB.DB()
+		if err == nil {
+			err = rawDatabase.Close()
+		}
+	}
+
+	//TODO: Remove all other connection.Close() operations throughout the codebase
+	if newConnection {
+		delete(cache, in.UID)
+		gormDB, err := in.createFreshConnection(ctx, dbConfig)
 		if err != nil {
 			return nil, err
 		}
-	}
-	// Default the admin password to empty if it was not specified by the definition
-	dbConfig.Passwd = ""
-	if in.Spec.AdminPassword != nil {
-		dbConfig.Passwd, err = GetSecretRefValue(ctx, client, in.Namespace, &in.Spec.AdminPassword.SecretKeyRef)
-		if err != nil {
-			return nil, err
+		newEntry := &orm.ConnectionDefinition{
+			DB:     gormDB,
+			Config: dbConfig,
 		}
+		cache[in.UID] = newEntry
+
+		return gormDB, nil
+	} else {
+		return conn.DB, nil
 	}
+
+}
+
+func (in *AdminConnection) createFreshConnection(ctx context.Context, dbConfig mysql.Config) (*gorm.DB, error) {
 
 	db, err := sql.Open("mysql", dbConfig.FormatDSN())
 	if err != nil {
@@ -130,12 +185,6 @@ func (in *AdminConnection) GetDatabaseConnection(ctx context.Context, client cli
 	// Open doesn't open a connection. Validate DSN data and our connection
 	err = db.Ping()
 	if err != nil {
-		defer func(db *sql.DB) {
-			err := db.Close()
-			if err != nil {
-				// TODO: Increment a fail counter here
-			}
-		}(db)
 		return nil, err
 	}
 
@@ -163,9 +212,9 @@ func (in *AdminConnection) GetDatabaseConnection(ctx context.Context, client cli
 
 	// Creating and switching to the control database.
 	in.switchDatabase(ctx, gormDB)
-
 	err = gormDB.AutoMigrate(&orm.ManagedDatabase{}, &orm.ManagedUser{})
 	if err != nil {
+		newLogger.Error(ctx, "Failed to migrate content for AdminConnection")
 		defer func(db *sql.DB) {
 			err := db.Close()
 			if err != nil {
@@ -185,10 +234,10 @@ func (in *AdminConnection) switchDatabase(ctx context.Context, gormDB *gorm.DB) 
 
 	// No specific rules about the collation or character sets here yet, just taking the server defaults.
 	// TODO: Could allow setting these (and the name) in a generic Config class.
-	createQuery = "CREATE DATABASE IF NOT EXISTS " + DatabaseName
+	createQuery = "CREATE DATABASE IF NOT EXISTS " + orm.DatabaseName
 	gormDB.Exec(createQuery)
 
-	createQuery = "USE " + DatabaseName
+	createQuery = "USE " + orm.DatabaseName
 	gormDB.Exec(createQuery)
 }
 

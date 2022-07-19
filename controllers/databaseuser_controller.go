@@ -45,8 +45,9 @@ const (
 // DatabaseUserReconciler reconciles a DatabaseUser object
 type DatabaseUserReconciler struct {
 	client.Client
-	Log    logr.Logger
-	Scheme *runtime.Scheme
+	Log         logr.Logger
+	Scheme      *runtime.Scheme
+	Connections map[types.UID]*orm.ConnectionDefinition
 }
 
 // Custom variables used for the reconciliation loops
@@ -105,20 +106,9 @@ func (r *DatabaseUserReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	// Establish the database connection
-	loop.db, err = loop.adminConnection.GetDatabaseConnection(ctx, r.Client)
+	loop.db, err = loop.adminConnection.GetDatabaseConnection(ctx, r.Client, r.Connections)
 	if err != nil {
 		return ctrl.Result{}, err
-	} else {
-		defer func(loop UserLoopContext) {
-			rawDatabase, err := loop.db.DB()
-			if err != nil {
-				err = rawDatabase.Close()
-			}
-			if err != nil {
-				// TODO: Increment fail counter
-				r.Log.Info(err.Error())
-			}
-		}(loop)
 	}
 
 	// Getting the secret
