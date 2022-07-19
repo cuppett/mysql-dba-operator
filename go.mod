@@ -7,6 +7,7 @@ require (
 	github.com/go-sql-driver/mysql v1.6.0
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.19.0
+	go.uber.org/zap v1.19.1
 	gorm.io/driver/mysql v1.3.4
 	gorm.io/gorm v1.23.6
 	k8s.io/api v0.23.5
@@ -53,7 +54,6 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
-	go.uber.org/zap v1.19.1 // indirect
 	golang.org/x/crypto v0.0.0-20220427172511-eb4f295cb31f // indirect
 	golang.org/x/net v0.0.0-20220225172249-27dd8689420f // indirect
 	golang.org/x/oauth2 v0.0.0-20210819190943-2bc19b11175f // indirect
