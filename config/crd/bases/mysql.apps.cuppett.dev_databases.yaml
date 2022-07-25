@@ -73,12 +73,21 @@ spec:
                 type: string
               defaultCollation:
                 type: string
+              host:
+                nullable: true
+                type: string
               message:
                 description: Indicates current state, phase or issue
                 type: string
               name:
                 nullable: true
                 type: string
+              port:
+                default: 3306
+                format: int32
+                maximum: 65535
+                minimum: 1024
+                type: integer
               syncTime:
                 format: date-time
                 nullable: true

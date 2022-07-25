@@ -145,6 +145,8 @@ func (r *DatabaseReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 			return ctrl.Result{}, err
 		}
 
+		loop.instance.Status.Host = loop.adminConnection.Spec.Host
+		loop.instance.Status.Port = loop.adminConnection.Spec.Port
 		loop.instance.Status.Name = loop.instance.Spec.Name
 		loop.instance.Status.SyncTime = metav1.NewTime(time.Now())
 
@@ -158,9 +160,13 @@ func (r *DatabaseReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 			updated, err := r.databaseUpdate(&loop)
 			if err == nil && updated {
 				loop.instance.Status.Message = "Altered database"
+			} else if err == nil {
+				loop.instance.Status.Message = "Database in sync"
+			} else {
+				loop.instance.Status.Message = "Failed to update database"
 			}
 		} else {
-			loop.instance.Status.Message = "No permission to update this database."
+			loop.instance.Status.Message = "No permission to this database."
 		}
 
 		err = r.Status().Update(ctx, loop.instance)

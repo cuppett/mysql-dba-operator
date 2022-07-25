@@ -59,6 +59,14 @@ type DatabaseStatus struct {
 	// +kubebuilder:validation:Optional
 	// +nullable
 	Name string `json:"name,omitempty"`
+	// +kubebuilder:validation:Optional
+	// +nullable
+	Host string `json:"host,omitempty"`
+	// +kubebuilder:default:=3306
+	// +kubebuilder:validation:Minimum=1024
+	// +kubebuilder:validation:Maximum=65535
+	// +kubebuilder:validation:Optional
+	Port int32 `json:"port"`
 }
 
 // +kubebuilder:object:root=true
