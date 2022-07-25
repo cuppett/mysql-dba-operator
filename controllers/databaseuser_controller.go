@@ -116,11 +116,16 @@ func (r *DatabaseUserReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		loop.secret, err = mysqlv1alpha1.GetSecret(ctx, r.Client, loop.instance.Namespace,
 			&loop.instance.Spec.Identification.AuthString.SecretKeyRef)
 		if err != nil {
-			return ctrl.Result{}, err
+			if errors.IsNotFound(err) {
+				loop.secret, err = r.createSecret(ctx, r.Client, loop.instance.Namespace,
+					&loop.instance.Spec.Identification.AuthString.SecretKeyRef)
+			}
 		} else if loop.secret == nil {
 			err = fmt.Errorf("invalid secret given, not found or available even though specified")
-			return ctrl.Result{}, err
 		}
+	}
+	if err != nil {
+		return ctrl.Result{}, err
 	}
 
 	// Check if the user instance is marked to be deleted, which is
@@ -195,6 +200,23 @@ func (r *DatabaseUserReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		}
 	}
 	return ctrl.Result{}, err
+}
+
+func (r *DatabaseUserReconciler) createSecret(ctx context.Context, client client.Client, namespace string,
+	secretSelector *v1.SecretKeySelector) (*v1.Secret, error) {
+
+	// Fetch the Secret instance
+	secret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretSelector.Name,
+			Namespace: namespace,
+		},
+	}
+	secret.Data = make(map[string][]byte)
+	secret.Data[secretSelector.Key] = []byte(mysqlv1alpha1.GeneratePassword(24, 1, 1, 1))
+	err := client.Create(ctx, secret)
+
+	return secret, err
 }
 
 func (r *DatabaseUserReconciler) secretOwnershipOk(loop *UserLoopContext) bool {
