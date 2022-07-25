@@ -187,8 +187,6 @@ func (r *DatabaseReconciler) databaseExists(loop *DatabaseLoopContext) (bool, er
 		return false, nil
 	}
 
-	r.Log.Info("Successfully retrieved database details", "Host", loop.adminConnection.Spec.Host,
-		"Name", loop.instance.Spec.Name)
 	if loop.instance.Status.Collate == "" || loop.instance.Status.Collate != schema.DefaultCollation {
 		loop.instance.Status.Collate = schema.DefaultCollation
 	}
