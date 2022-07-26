@@ -69,9 +69,7 @@ spec:
                     description: 'Relates to auth_plugin, See: MySQL CREATE USER'
                     type: string
                   authString:
-                    description: 'Relates to auth_string, See: MySQL CREATE USER TODO:
-                      We should watch this object, if it changes we can flush through
-                      a new password/token.'
+                    description: 'Relates to auth_string, See: MySQL CREATE USER'
                     nullable: true
                     properties:
                       secretKeyRef:
@@ -158,9 +156,7 @@ spec:
                     description: 'Relates to auth_plugin, See: MySQL CREATE USER'
                     type: string
                   authString:
-                    description: 'Relates to auth_string, See: MySQL CREATE USER TODO:
-                      We should watch this object, if it changes we can flush through
-                      a new password/token.'
+                    description: 'Relates to auth_string, See: MySQL CREATE USER'
                     nullable: true
                     properties:
                       secretKeyRef:

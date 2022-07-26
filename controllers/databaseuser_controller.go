@@ -183,20 +183,20 @@ func (r *DatabaseUserReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 		if !exists {
 			err = r.userCreate(ctx, &loop)
-			if err == nil {
-				loop.instance.Status.CreationTime = metav1.NewTime(time.Now())
-				loop.instance.Status.Message = "Created user"
-			}
+			loop.instance.Status.CreationTime = metav1.NewTime(time.Now())
+			loop.instance.Status.Message = "Created user"
 		} else if loop.adminConnection.UserMine(loop.db, loop.instance) {
-			updated, err := r.userUpdate(ctx, &loop)
-			if err == nil && updated {
+			var updated bool
+			updated, err = r.userUpdate(ctx, &loop)
+			if updated {
 				loop.instance.Status.SyncTime = metav1.NewTime(time.Now())
 			}
 		}
 
-		err = r.Status().Update(ctx, loop.instance)
 		if err != nil {
 			r.Log.Error(err, "Failure to reconcile user.")
+		} else {
+			err = r.Status().Update(ctx, loop.instance)
 		}
 	}
 	return ctrl.Result{}, err
@@ -335,9 +335,7 @@ func (r *DatabaseUserReconciler) userUpdate(ctx context.Context, loop *UserLoopC
 		permsDiff = true
 		r.Log.Info("Permissions difference.", "Host", loop.adminConnection.Spec.Host,
 			"Name", loop.instance.Status.Username)
-		// Always has GRANT USAGE as the first one. Only when we have something more complicated than
-		// that do we need to revoke it.
-		if len(loop.instance.Status.Grants) > 1 {
+		if len(loop.instance.Status.Grants) > 0 {
 			_, err = r.revoke(loop)
 		}
 		if err == nil {
@@ -373,22 +371,20 @@ func (r *DatabaseUserReconciler) userDetailString(ctx context.Context, loop *Use
 		}
 		authString = mysqlv1alpha1.Escape(authString)
 
-		// Looking for currently known auth_plugin in both places. Where Status has it, grab to hang onto it.
 		authPlugin = loop.instance.Spec.Identification.AuthPlugin
-		if authPlugin == "" && loop.instance.Status.Identification != nil {
-			authPlugin = loop.instance.Status.Identification.AuthPlugin
-		} else if loop.instance.Status.Identification != nil &&
-			loop.instance.Spec.Identification.AuthPlugin != loop.instance.Status.Identification.AuthPlugin {
+		if loop.instance.Status.Identification != nil &&
+			loop.instance.Spec.Identification.AuthPlugin != loop.instance.Status.Identification.AuthPlugin &&
+			loop.instance.Spec.Identification.AuthPlugin != "" {
 			pluginsDiff = true
 		}
-		if authPlugin != "" {
-			authPlugin = mysqlv1alpha1.Escape(authPlugin)
-		}
+		authPlugin = mysqlv1alpha1.Escape(authPlugin)
 
 		if passwordUpdated || pluginsDiff {
 			if authPlugin != "" {
 				queryFragment += " IDENTIFIED WITH '" + authPlugin + "'"
 				if authString != "" {
+					// MySQL can do both here
+					// MariaDB can only do AS (otherwise requires deprecated 5.7 PASSWORD() function to use BY
 					if loop.instance.Spec.Identification.ClearText {
 						queryFragment += " BY '" + authString + "'"
 					} else {
@@ -396,8 +392,9 @@ func (r *DatabaseUserReconciler) userDetailString(ctx context.Context, loop *Use
 					}
 				}
 			} else {
-				if authString != "" && !update {
+				if authString != "" {
 					queryFragment += " IDENTIFIED BY"
+					// Unique to MARIADB (and maybe MySQL databases <= 5.7?)
 					if !loop.instance.Spec.Identification.ClearText {
 						queryFragment += " PASSWORD"
 					}
@@ -417,7 +414,6 @@ func (r *DatabaseUserReconciler) userDetailString(ctx context.Context, loop *Use
 		// If this update pass is successful, our identification details will match.
 		loop.instance.Status.IdentificationResourceVersion = loop.secret.ResourceVersion
 		loop.instance.Status.Identification = loop.instance.Spec.Identification
-		loop.instance.Status.Identification.AuthPlugin = authPlugin // For the case where Spec=""
 		loop.instance.Status.TlsOptions = loop.instance.Spec.TlsOptions
 	}
 
@@ -513,14 +509,19 @@ func (r *DatabaseUserReconciler) grantStatusUpdate(loop *UserLoopContext, empty 
 		return false, tx.Error
 	}
 
-	for _, row := range results {
-		for key := range row {
-			grant = fmt.Sprintf("%v", row[key])
-			if !contains(loop.instance.Status.Grants, grant) {
-				r.Log.Info("Existing grants do not contain this one.", "Grant", grant, "Host",
-					loop.adminConnection.Spec.Host, "Name", loop.instance.Status.Username)
-				update = true
-				loop.instance.Status.Grants = append(loop.instance.Status.Grants, grant)
+	for i, row := range results {
+		// Drop the first one in the results.
+		// It's a useless GRANT USAGE statement.
+		// On MariaDB it includes the user's password hash.
+		if i > 0 {
+			for key := range row {
+				grant = fmt.Sprintf("%v", row[key])
+				if !contains(loop.instance.Status.Grants, grant) {
+					r.Log.Info("Existing grants do not contain this one.", "Grant", grant, "Host",
+						loop.adminConnection.Spec.Host, "Name", loop.instance.Status.Username)
+					update = true
+					loop.instance.Status.Grants = append(loop.instance.Status.Grants, grant)
+				}
 			}
 		}
 	}

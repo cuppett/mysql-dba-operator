@@ -52,7 +52,6 @@ type Identification struct {
 	// +kubebuilder:validation:Optional
 	AuthPlugin string `json:"authPlugin"`
 	// Relates to auth_string, See: MySQL CREATE USER
-	// TODO: We should watch this object, if it changes we can flush through a new password/token.
 	// +kubebuilder:validation:Optional
 	// +nullable
 	AuthString *SecretKeySource `json:"authString,omitEmpty"`
@@ -129,7 +128,7 @@ func init() {
 
 func (r *DatabaseUser) PermissionListEqual() bool {
 	// Always has GRANT USAGE as the first one. Only when we have something more complicated than
-	if len(r.Status.Grants)-1 != len(r.Spec.DatabaseList) {
+	if len(r.Status.Grants) != len(r.Spec.DatabaseList) {
 		return false
 	}
 	return reflect.DeepEqual(r.Spec.DatabaseList, r.Status.DatabaseList)
