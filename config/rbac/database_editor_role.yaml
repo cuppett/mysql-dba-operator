@@ -5,7 +5,7 @@ metadata:
   name: database-editor-role
 rules:
 - apiGroups:
-  - zzc
+  - mysql.apps.cuppett.dev
   resources:
   - databases
   verbs:

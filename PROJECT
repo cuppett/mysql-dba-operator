@@ -4,14 +4,35 @@ layout:
 projectName: mysql-dba-operator
 repo: github.com/cuppett/mysql-dba-operator
 resources:
-- crdVersion: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: apps.cuppett.dev
+  group: mysql
+  kind: AdminConnection
+  path: github.com/cuppett/mysql-dba-operator/api/v1alpha1
+  version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: apps.cuppett.dev
   group: mysql
   kind: Database
+  path: github.com/cuppett/mysql-dba-operator/api/v1alpha1
   version: v1alpha1
-  webhookVersion: v1
-- crdVersion: v1
+  webhooks:
+    validation: true
+    webhookVersion: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: apps.cuppett.dev
   group: mysql
   kind: DatabaseUser
+  path: github.com/cuppett/mysql-dba-operator/api/v1alpha1
   version: v1alpha1
 version: "3"
 plugins:
