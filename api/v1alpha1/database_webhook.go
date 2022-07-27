@@ -18,9 +18,14 @@ package v1alpha1
 
 import (
 	"k8s.io/apimachinery/pkg/runtime"
+	"regexp"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+)
+
+var (
+	nameRegEx = regexp.MustCompile("^[^\\/?%*:|\"<>.]{1,64}$")
 )
 
 // log is for logging in this package.
@@ -42,14 +47,19 @@ func (e *validationError) Error() string {
 	return e.s
 }
 
-// +kubebuilder:webhook:path=/validate-mysql-apps-cuppett-dev-v1alpha1-database,mutating=false,failurePolicy=fail,sideEffects=None,groups=mysql.apps.cuppett.dev,resources=databases,verbs=update,versions=v1alpha1,name=vdatabase.kb.io,admissionReviewVersions=v1
+// +kubebuilder:webhook:path=/validate-mysql-apps-cuppett-dev-v1alpha1-database,mutating=false,failurePolicy=fail,sideEffects=None,groups=mysql.apps.cuppett.dev,resources=databases,verbs=create;update,versions=v1alpha1,name=vdatabase.kb.io,admissionReviewVersions=v1
 
 var _ webhook.Validator = &Database{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (r *Database) ValidateCreate() error {
 	databaselog.Info("validate create", "name", r.Name)
-	// Not implemented
+
+	// See also: https://stackoverflow.com/questions/9537771/mysql-database-name-restrictions
+	if !nameRegEx.MatchString(r.Spec.Name) {
+		return &validationError{"Invalid database name."}
+	}
+
 	return nil
 }
 
