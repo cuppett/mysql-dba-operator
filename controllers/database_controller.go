@@ -201,7 +201,7 @@ func (r *DatabaseReconciler) databaseUpdate(loop *DatabaseLoopContext) (bool, er
 	var alterQuery string
 	requireAlter := false
 
-	alterQuery = "ALTER DATABASE " + loop.instance.Spec.Name
+	alterQuery = "ALTER DATABASE `" + loop.instance.Spec.Name + "`"
 	if loop.instance.Spec.CharacterSet != "" && loop.instance.Spec.CharacterSet != loop.instance.Status.CharacterSet {
 		requireAlter = true
 		alterQuery += " CHARACTER SET " + loop.instance.Spec.CharacterSet
@@ -233,7 +233,7 @@ func (r *DatabaseReconciler) databaseCreate(loop *DatabaseLoopContext) (bool, er
 
 	var createQuery string
 
-	createQuery = "CREATE DATABASE " + loop.instance.Spec.Name
+	createQuery = "CREATE DATABASE `" + loop.instance.Spec.Name + "`"
 	if loop.instance.Spec.CharacterSet != "" {
 		createQuery += " CHARACTER SET " + loop.instance.Spec.CharacterSet
 		loop.instance.Status.CharacterSet = loop.instance.Spec.CharacterSet
@@ -271,7 +271,7 @@ func (r *DatabaseReconciler) databaseCreate(loop *DatabaseLoopContext) (bool, er
 // This is the finalizer which will DROP the database from the server losing all data.
 func (r *DatabaseReconciler) finalizeDatabase(loop *DatabaseLoopContext) error {
 
-	tx := loop.db.Exec("DROP DATABASE IF EXISTS " + loop.instance.Spec.Name)
+	tx := loop.db.Exec("DROP DATABASE IF EXISTS `" + loop.instance.Spec.Name + "`")
 	if tx.Error != nil {
 		r.Log.Error(tx.Error, "Failed to delete the database")
 	}
