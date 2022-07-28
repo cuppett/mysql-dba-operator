@@ -466,7 +466,7 @@ func (r *DatabaseUserReconciler) grant(ctx context.Context, loop *UserLoopContex
 					grantQuery += strings.ToUpper(indivPermission)
 				}
 			}
-			grantQuery += " ON " + database.Status.Name + ".* TO '" + mysqlv1alpha1.Escape(loop.instance.Status.Username) + "'"
+			grantQuery += " ON `" + database.Status.Name + "`.* TO '" + mysqlv1alpha1.Escape(loop.instance.Status.Username) + "'"
 			err = r.runStmt(loop, grantQuery)
 			if err != nil {
 				r.Log.Error(err, "Failed to grant user permissions", "Host",
