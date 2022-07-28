@@ -542,7 +542,7 @@ func (r *DatabaseUserReconciler) runStmt(loop *UserLoopContext, query string, ar
 // This is the finalizer which will DROP the database from the server losing all data.
 func (r *DatabaseUserReconciler) finalizeUser(loop *UserLoopContext) error {
 
-	tx := loop.db.Exec("DROP USER IF EXISTS " + loop.instance.Status.Username)
+	tx := loop.db.Exec("DROP USER IF EXISTS '" + mysqlv1alpha1.Escape(loop.instance.Status.Username) + "'")
 	if tx.Error != nil {
 		r.Log.Error(tx.Error, "Failed to delete the user")
 	}
