@@ -454,7 +454,7 @@ func (r *DatabaseUserReconciler) grant(ctx context.Context, loop *UserLoopContex
 		}
 
 		// Only grant permissions to databases in the same namespace and also under management of the operator.
-		if loop.adminConnection.DatabaseMine(loop.db, database) {
+		if loop.adminConnection.DatabaseMine(loop.db, database) && database.Status.Name != "" {
 			grantQuery = "GRANT "
 			if len(permission.Grants) == 0 {
 				grantQuery += "ALL"
@@ -472,7 +472,6 @@ func (r *DatabaseUserReconciler) grant(ctx context.Context, loop *UserLoopContex
 				r.Log.Error(err, "Failed to grant user permissions", "Host",
 					loop.adminConnection.Spec.Host, "Name", loop.instance.Status.Username, "Query",
 					grantQuery)
-				return false, err
 			}
 		}
 	}
