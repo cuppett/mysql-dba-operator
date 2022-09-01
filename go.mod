@@ -8,8 +8,8 @@ require (
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.19.0
 	go.uber.org/zap v1.19.1
-	gorm.io/driver/mysql v1.3.4
-	gorm.io/gorm v1.23.6
+	gorm.io/driver/mysql v1.3.6
+	gorm.io/gorm v1.23.8
 	k8s.io/api v0.23.5
 	k8s.io/apimachinery v0.23.5
 	k8s.io/client-go v0.23.5
