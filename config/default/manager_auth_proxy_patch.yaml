@@ -33,7 +33,7 @@ spec:
             memory: 128Mi
           requests:
             cpu: 5m
-            memory: 64Mi
+            memory: 10Mi
       - name: manager
         args:
         - "--health-probe-bind-address=:8081"
