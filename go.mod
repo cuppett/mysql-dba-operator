@@ -7,7 +7,7 @@ require (
 	github.com/go-sql-driver/mysql v1.7.0
 	github.com/onsi/ginkgo/v2 v2.5.1
 	github.com/onsi/gomega v1.24.1
-	go.uber.org/zap v1.23.0
+	go.uber.org/zap v1.24.0
 	gorm.io/driver/mysql v1.4.5
 	gorm.io/gorm v1.24.1
 	k8s.io/api v0.25.4
