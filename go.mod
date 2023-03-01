@@ -5,8 +5,8 @@ go 1.19
 require (
 	github.com/go-logr/logr v1.2.3
 	github.com/go-sql-driver/mysql v1.7.0
-	github.com/onsi/ginkgo/v2 v2.8.2
-	github.com/onsi/gomega v1.27.1
+	github.com/onsi/ginkgo/v2 v2.8.4
+	github.com/onsi/gomega v1.27.2
 	go.uber.org/zap v1.24.0
 	gorm.io/driver/mysql v1.4.5
 	gorm.io/gorm v1.24.5
