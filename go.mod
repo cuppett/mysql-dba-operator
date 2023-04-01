@@ -9,7 +9,7 @@ require (
 	github.com/onsi/gomega v1.27.1
 	go.uber.org/zap v1.24.0
 	gorm.io/driver/mysql v1.4.5
-	gorm.io/gorm v1.24.5
+	gorm.io/gorm v1.24.6
 	k8s.io/api v0.25.6
 	k8s.io/apimachinery v0.25.6
 	k8s.io/client-go v0.25.6
