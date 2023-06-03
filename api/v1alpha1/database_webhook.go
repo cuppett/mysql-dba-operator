@@ -26,7 +26,7 @@ import (
 )
 
 var (
-	nameRegEx = regexp.MustCompile("^[^\\/?%*:|\"<>.]{1,64}$")
+	nameRegEx = regexp.MustCompile(`^[^\\/?%*:|"<>.]{1,64}$`)
 )
 
 // log is for logging in this package.
