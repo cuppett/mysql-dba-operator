@@ -1,5 +1,5 @@
 /*
-Copyright 2021.
+Copyright 2021, 2023.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 var (
@@ -52,34 +53,34 @@ func (e *validationError) Error() string {
 var _ webhook.Validator = &Database{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *Database) ValidateCreate() error {
+func (r *Database) ValidateCreate() (admission.Warnings, error) {
 	databaselog.Info("validate create", "name", r.Name)
 
 	// See also: https://stackoverflow.com/questions/9537771/mysql-database-name-restrictions
 	if !nameRegEx.MatchString(r.Spec.Name) {
-		return &validationError{"Invalid database name."}
+		return nil, &validationError{"Invalid database name."}
 	}
 
-	return nil
+	return nil, nil
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *Database) ValidateUpdate(old runtime.Object) error {
+func (r *Database) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	databaselog.Info("validate update", "name", r.Name)
 
 	// Converting to Database type
 	oldDatabase := old.(*Database)
 
 	if r.Spec.Name != oldDatabase.Spec.Name {
-		return &validationError{"Name not allowed to be changed"}
+		return nil, &validationError{"Name not allowed to be changed"}
 	}
 
-	return nil
+	return nil, nil
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *Database) ValidateDelete() error {
+func (r *Database) ValidateDelete() (admission.Warnings, error) {
 	databaselog.Info("validate delete", "name", r.Name)
 	// Not implemented
-	return nil
+	return nil, nil
 }

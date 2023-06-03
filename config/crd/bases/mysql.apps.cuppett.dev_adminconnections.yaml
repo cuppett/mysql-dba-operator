@@ -4,6 +4,7 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.10.0
+  creationTimestamp: null
   name: adminconnections.mysql.apps.cuppett.dev
 spec:
   group: mysql.apps.cuppett.dev
