@@ -28,7 +28,6 @@ var _ = Describe("Database Webhook", func() {
 		Entry("should not allow names with question mark", "test?test"),
 		Entry("should not allow names with asterisks", "test*test"),
 		Entry("should not allow long names", "test0123893498391389193874adkljflkasjdflkajdf197194797149714897349734979test"),
-		//Entry("should not allow regular names", "easyone"),
 	)
 
 	Describe("Changing names", func() {
