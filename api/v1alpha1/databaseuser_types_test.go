@@ -8,7 +8,7 @@ import (
 )
 
 var _ = Describe("Database User", func() {
-	Describe("Different Lengths", func() {
+	Describe("Testing Database and Grant Lengths", func() {
 		var database_user *DatabaseUser
 
 		BeforeEach(func() {
