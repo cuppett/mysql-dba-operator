@@ -17,7 +17,11 @@ limitations under the License.
 package controllers
 
 import (
+	"context"
+	"github.com/cuppett/mysql-dba-operator/orm"
+	"k8s.io/apimachinery/pkg/types"
 	"path/filepath"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -39,6 +43,8 @@ import (
 var cfg *rest.Config
 var k8sClient client.Client
 var testEnv *envtest.Environment
+var ctx context.Context
+var cancel context.CancelFunc
 
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -47,11 +53,13 @@ func TestAPIs(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
+	ctx, cancel = context.WithCancel(context.TODO())
 	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
 
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
-		CRDDirectoryPaths: []string{filepath.Join("..", "config", "crd", "bases")},
+		CRDDirectoryPaths:     []string{filepath.Join("..", "config", "crd", "bases")},
+		ErrorIfCRDPathMissing: true,
 	}
 
 	var err error
@@ -75,9 +83,51 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	Expect(k8sClient).NotTo(BeNil())
 
+	webhookInstallOptions := &testEnv.WebhookInstallOptions
+	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
+		Scheme:             scheme.Scheme,
+		Host:               webhookInstallOptions.LocalServingHost,
+		Port:               webhookInstallOptions.LocalServingPort,
+		CertDir:            webhookInstallOptions.LocalServingCertDir,
+		LeaderElection:     false,
+		MetricsBindAddress: "0",
+	})
+	Expect(err).ToNot(HaveOccurred())
+
+	var connectionCache = make(map[types.UID]*orm.ConnectionDefinition)
+	err = (&DatabaseReconciler{
+		Client:      mgr.GetClient(),
+		Scheme:      mgr.GetScheme(),
+		Connections: connectionCache,
+	}).SetupWithManager(mgr)
+	Expect(err).ToNot(HaveOccurred())
+
+	err = (&mysqlv1alpha1.Database{}).SetupWebhookWithManager(mgr)
+	Expect(err).ToNot(HaveOccurred())
+
+	err = (&DatabaseUserReconciler{
+		Client:      mgr.GetClient(),
+		Scheme:      mgr.GetScheme(),
+		Connections: connectionCache,
+	}).SetupWithManager(mgr)
+	Expect(err).ToNot(HaveOccurred())
+
+	err = (&AdminConnectionReconciler{
+		Client:      mgr.GetClient(),
+		Scheme:      mgr.GetScheme(),
+		Connections: connectionCache,
+	}).SetupWithManager(mgr)
+	Expect(err).ToNot(HaveOccurred())
+
+	go func() {
+		defer GinkgoRecover()
+		err = mgr.Start(ctx)
+		Expect(err).ToNot(HaveOccurred(), "failed to run manager")
+	}()
 })
 
 var _ = AfterSuite(func() {
+	cancel()
 	By("tearing down the test environment")
 	err := testEnv.Stop()
 	Expect(err).NotTo(HaveOccurred())
