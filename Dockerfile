@@ -1,5 +1,5 @@
 # Build the manager binary
-FROM quay.io/cuppett/golang:1.20 as builder
+FROM ghcr.io/cuppett/golang:1.20 as builder
 
 WORKDIR /workspace
 # Copy the Go Modules manifests
@@ -20,7 +20,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -o manager main.go
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
-FROM registry.fedoraproject.org/fedora-minimal
+FROM ghcr.io/cuppett/fedora-minimal:latest
 
 LABEL maintainer "Stephen Cuppett <steve@cuppett.com>"
 LABEL org.opencontainers.image.source "https://github.com/cuppett/mysql-dba-operator"
