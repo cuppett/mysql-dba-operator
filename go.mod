@@ -3,10 +3,13 @@ module github.com/cuppett/mysql-dba-operator
 go 1.20
 
 require (
+	github.com/docker/docker v23.0.5+incompatible
 	github.com/go-logr/logr v1.2.4
 	github.com/go-sql-driver/mysql v1.7.1
 	github.com/onsi/ginkgo/v2 v2.9.7
 	github.com/onsi/gomega v1.27.7
+	github.com/testcontainers/testcontainers-go v0.20.1
+	github.com/testcontainers/testcontainers-go/modules/mysql v0.20.1
 	go.uber.org/zap v1.24.0
 	gorm.io/driver/mysql v1.5.1
 	gorm.io/gorm v1.25.1
@@ -26,7 +29,6 @@ require (
 	github.com/cpuguy83/dockercfg v0.3.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/docker/distribution v2.8.1+incompatible // indirect
-	github.com/docker/docker v23.0.5+incompatible // indirect
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/emicklei/go-restful/v3 v3.9.0 // indirect
@@ -71,8 +73,6 @@ require (
 	github.com/prometheus/procfs v0.9.0 // indirect
 	github.com/sirupsen/logrus v1.9.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/testcontainers/testcontainers-go v0.20.1 // indirect
-	github.com/testcontainers/testcontainers-go/modules/mysql v0.20.1 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
 	golang.org/x/net v0.10.0 // indirect
