@@ -19,10 +19,17 @@ package controllers
 import (
 	"context"
 	"github.com/cuppett/mysql-dba-operator/orm"
+	"github.com/docker/docker/api/types/container"
+	"github.com/testcontainers/testcontainers-go"
+	. "github.com/testcontainers/testcontainers-go/modules/mysql"
+	"github.com/testcontainers/testcontainers-go/wait"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"os"
 	"path/filepath"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"testing"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -45,6 +52,9 @@ var k8sClient client.Client
 var testEnv *envtest.Environment
 var ctx context.Context
 var cancel context.CancelFunc
+
+var adminConnection *mysqlv1alpha1.AdminConnection
+var mysqlContainer *MySQLContainer
 
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -124,11 +134,49 @@ var _ = BeforeSuite(func() {
 		err = mgr.Start(ctx)
 		Expect(err).ToNot(HaveOccurred(), "failed to run manager")
 	}()
+
+	image, ok := os.LookupEnv("MYSQL_IMAGE")
+	if !ok {
+		image = "ghcr.io/cuppett/mariadb:10.11"
+	}
+
+	mysqlContainer, err = RunContainer(ctx, testcontainers.WithImage(image),
+		WithUsername("root"), WithPassword(""),
+		testcontainers.WithConfigModifier(func(config *container.Config) {
+			config.Env = []string{"MYSQL_ALLOW_EMPTY_PASSWORD=true"}
+		}),
+		testcontainers.WithWaitStrategyAndDeadline(time.Second*60, wait.ForListeningPort("3306/tcp")),
+	)
+	Expect(err).NotTo(HaveOccurred())
+
+	hostname, err := mysqlContainer.Host(ctx)
+	Expect(err).NotTo(HaveOccurred())
+	port, err := mysqlContainer.MappedPort(ctx, "3306")
+	Expect(err).NotTo(HaveOccurred())
+
+	adminConnection = &mysqlv1alpha1.AdminConnection{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test",
+			Namespace: "default",
+		},
+		Spec: mysqlv1alpha1.AdminConnectionSpec{
+			Host: hostname,
+			Port: int32(port.Int()),
+		},
+	}
+	err = k8sClient.Create(ctx, adminConnection)
+	Expect(err).NotTo(HaveOccurred())
 })
 
 var _ = AfterSuite(func() {
+	err := mysqlContainer.Terminate(ctx)
+	Expect(err).NotTo(HaveOccurred())
+	err = k8sClient.Delete(ctx, adminConnection)
+	Expect(err).NotTo(HaveOccurred())
+	adminConnection = nil
+
 	cancel()
 	By("tearing down the test environment")
-	err := testEnv.Stop()
+	err = testEnv.Stop()
 	Expect(err).NotTo(HaveOccurred())
 })
