@@ -62,7 +62,6 @@ var _ = Describe("Admin Connection", func() {
 		It("should have good status", func(ctx SpecContext) {
 			Eventually(func() string {
 				serverAdminConnection := &AdminConnection{}
-				//time.Sleep(time.Second * 90)
 				adminConnectionNamespacedName := types.NamespacedName{
 					Namespace: adminConnection.Namespace,
 					Name:      adminConnection.Name,
