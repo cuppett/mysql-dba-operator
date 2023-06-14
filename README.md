@@ -5,7 +5,9 @@ It works against and within existing database servers.
 It helps user applications by allowing provisioning of individual
 databases and database users inside an existing MySQL database server.
 
-## AdminConnection
+## Types
+
+### AdminConnection
 
 Database servers can be provisioned separately and then made available
 for use with this operator by defining an <code>AdminConnection</code>.
@@ -75,7 +77,7 @@ mysql> describe zz_dba_operator.managed_users;
 6 rows in set (0.00 sec)
 </pre>
 
-## Database
+### Database
 
 Once you have an <code>AdminConnection</code> resource, you can create a <code>Database</code>
 resource. Creating a new <code>Database</code> resource effectively triggers a <sql>CREATE DATABASE</sql> 
@@ -103,7 +105,7 @@ changes to the database defaults.
 Updates to <code>name</code> are rejected by a
 validating webhook. 
 
-## DatabaseUser
+### DatabaseUser
 
 Finally, you can create a <code>DatabaseUser</code> resource to programmatically create
 users and control a few attributes and permissions for the user. 
@@ -146,5 +148,24 @@ The <code>v1.Secret</code> will have <code>ownerReferences</code> updated to bel
 This is to facilitate one-use passwords and automatically clean them up or scrub them when the user is
 removed/dropped.
 
+## Development & Testing
+
+### Prerequisites
+
+* [Operator SDK](https://sdk.operatorframework.io/docs/installation/)
+* [Kustomize](https://kubectl.docs.kubernetes.io/installation/kustomize/)
+* [Testcontainers for Go](https://golang.testcontainers.org/)
+* [Docker](https://docs.docker.com/get-docker/) -or - [Podman](https://podman.io/getting-started/installation)
+
+### Testing
+
+Ensure you've installed the prerequisites above.
+
+```bash
+make test
+```
+
+### Lineage
+
 Operator originally built using [Operator SDK 1.3.0](https://v1-3-x.sdk.operatorframework.io/)<br />
-Operator currently built using [Operator SDK 1.28.0](https://v1-28-x.sdk.operatorframework.io/docs/upgrading-sdk-version/v1.28.0/)
+Operator currently built using [Operator SDK 1.29.0](https://v1-29-x.sdk.operatorframework.io/)
