@@ -30,7 +30,7 @@ jobs:
         - '1.26'
         - '1.27'
 
-    name: Operator SDK ${{ matrix.images }} - K8s v${{ matrix.kubernetes }}
+    name: make test ${{ matrix.images }} - K8s v${{ matrix.kubernetes }}
 
     steps:
     - uses: actions/checkout@v3
