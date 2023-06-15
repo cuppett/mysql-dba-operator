@@ -95,14 +95,14 @@ var _ = Describe("AdminConnection_Types", func() {
 			}
 		})
 
-		Context("Database does exist in the table, and in the server, and it is a match.", func() {
+		Describe("Database does exist in the table, and in the server, and it is a match.", func() {
 			It("returns true for mine.", func() {
 				isDatabaseMine := adminConnection.DatabaseMine(gormDB, database)
 				Expect(isDatabaseMine).To(BeTrue())
 			})
 		})
 
-		Context("Database doesn't exist in the table or server", func() {
+		Describe("Database doesn't exist in the table or server", func() {
 			BeforeEach(func() {
 				createDb = false
 				saveGormDb = false
@@ -113,7 +113,7 @@ var _ = Describe("AdminConnection_Types", func() {
 			})
 		})
 
-		Context("Database does exist in the table, but not in the server", func() {
+		Describe("Database does exist in the table, but not in the server", func() {
 			BeforeEach(func() {
 				createDb = false
 			})
@@ -123,7 +123,7 @@ var _ = Describe("AdminConnection_Types", func() {
 			})
 		})
 
-		Context("Database does exist in the table, and in the server, but not my UID", func() {
+		Describe("Database does exist in the table, and in the server, but not my UID", func() {
 			BeforeEach(func() {
 				managedDatabase.Uuid = uuid.New().String()
 			})
@@ -133,7 +133,7 @@ var _ = Describe("AdminConnection_Types", func() {
 			})
 		})
 
-		Context("Database does exist in the table, and in the server, but not my k8s name", func() {
+		Describe("Database does exist in the table, and in the server, but not my k8s name", func() {
 			BeforeEach(func() {
 				managedDatabase.Name = "wrongk8sname"
 			})
@@ -143,7 +143,7 @@ var _ = Describe("AdminConnection_Types", func() {
 			})
 		})
 
-		Context("Database does exist in the table, and in the server, but not my k8s namespace", func() {
+		Describe("Database does exist in the table, and in the server, but not my k8s namespace", func() {
 			BeforeEach(func() {
 				managedDatabase.Namespace = "wrongnamespace"
 			})
@@ -153,7 +153,7 @@ var _ = Describe("AdminConnection_Types", func() {
 			})
 		})
 
-		Context("Database does exist in the table, and in the server, but not my database name", func() {
+		Describe("Database does exist in the table, and in the server, but not my database name", func() {
 			BeforeEach(func() {
 				managedDatabase.DatabaseName = "wrongdatabasename"
 			})
@@ -223,14 +223,14 @@ var _ = Describe("AdminConnection_Types", func() {
 			}
 		})
 
-		Context("User does exist in the table, and in the server, and it is a match.", func() {
+		Describe("User does exist in the table, and in the server, and it is a match.", func() {
 			It("returns true for mine.", func() {
 				isUserMine := adminConnection.UserMine(gormDB, user)
 				Expect(isUserMine).To(BeTrue())
 			})
 		})
 
-		Context("User doesn't exist in the table or server", func() {
+		Describe("User doesn't exist in the table or server", func() {
 			BeforeEach(func() {
 				createUser = false
 				saveGormDb = false
@@ -241,7 +241,7 @@ var _ = Describe("AdminConnection_Types", func() {
 			})
 		})
 
-		Context("User does exist in the table, but not in the server", func() {
+		Describe("User does exist in the table, but not in the server", func() {
 			BeforeEach(func() {
 				createUser = false
 			})
@@ -251,7 +251,7 @@ var _ = Describe("AdminConnection_Types", func() {
 			})
 		})
 
-		Context("User does exist in the table, and in the server, but not my UID", func() {
+		Describe("User does exist in the table, and in the server, but not my UID", func() {
 			BeforeEach(func() {
 				managedUser.Uuid = uuid.New().String()
 			})
@@ -261,7 +261,7 @@ var _ = Describe("AdminConnection_Types", func() {
 			})
 		})
 
-		Context("User does exist in the table, and in the server, but not my k8s name", func() {
+		Describe("User does exist in the table, and in the server, but not my k8s name", func() {
 			BeforeEach(func() {
 				managedUser.Name = "wrongk8sname"
 			})
@@ -271,7 +271,7 @@ var _ = Describe("AdminConnection_Types", func() {
 			})
 		})
 
-		Context("User does exist in the table, and in the server, but not my k8s namespace", func() {
+		Describe("User does exist in the table, and in the server, but not my k8s namespace", func() {
 			BeforeEach(func() {
 				managedUser.Namespace = "wrongnamespace"
 			})
@@ -281,7 +281,7 @@ var _ = Describe("AdminConnection_Types", func() {
 			})
 		})
 
-		Context("User does exist in the table, and in the server, but not my user name", func() {
+		Describe("User does exist in the table, and in the server, but not my user name", func() {
 			BeforeEach(func() {
 				managedUser.Username = "wrongusername"
 			})
