@@ -143,7 +143,7 @@ var _ = BeforeSuite(func() {
 		testcontainers.WithConfigModifier(func(config *container.Config) {
 			config.Env = []string{"MYSQL_ALLOW_EMPTY_PASSWORD=true"}
 		}),
-		testcontainers.WithWaitStrategyAndDeadline(time.Second*60, wait.ForListeningPort("3306/tcp")),
+		testcontainers.WithWaitStrategyAndDeadline(time.Minute*5, wait.ForListeningPort("3306/tcp")),
 	)
 	Expect(err).NotTo(HaveOccurred())
 

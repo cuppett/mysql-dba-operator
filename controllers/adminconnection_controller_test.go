@@ -31,7 +31,7 @@ var _ = Describe("Admin Connection", func() {
 				}
 				return serverAdminConnection.Status.Message
 			}).WithContext(ctx).Should(Equal("Successfully pinged database"))
-		}, NodeTimeout(time.Second*10))
+		}, NodeTimeout(time.Second*30))
 	})
 
 })
