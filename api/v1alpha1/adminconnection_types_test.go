@@ -163,4 +163,132 @@ var _ = Describe("AdminConnection_Types", func() {
 			})
 		})
 	})
+
+	Describe("UserMine", func() {
+		var gormDB *gorm.DB
+		var err error
+		var managedUser *orm.ManagedUser
+		var user *DatabaseUser
+		cache := make(map[types.UID]*orm.ConnectionDefinition)
+		var saveGormDb, createUser bool
+
+		BeforeEach(func() {
+			gormDB, err = adminConnection.GetDatabaseConnection(ctx, k8sClient, cache)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(gormDB).NotTo(BeNil())
+
+			// Wipe the user table here.
+			gormDB.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(&orm.ManagedUser{})
+
+			newUID := uuid.New()
+			user = &DatabaseUser{
+				ObjectMeta: metav1.ObjectMeta{
+					UID:       types.UID(newUID.String()),
+					Namespace: "default",
+					Name:      "test",
+				},
+				Spec: DatabaseUserSpec{
+					Username: "test",
+				},
+			}
+
+			managedUser = &orm.ManagedUser{
+				Uuid:      newUID.String(),
+				Namespace: user.Namespace,
+				Name:      user.Name,
+				Username:  user.Spec.Username,
+			}
+			saveGormDb = true
+			createUser = true
+		})
+
+		JustBeforeEach(func() {
+			if saveGormDb {
+				tx := gormDB.Create(managedUser)
+				Expect(tx.Error).To(BeNil())
+			}
+
+			if createUser {
+				createQuery := "CREATE USER '" + Escape(user.Spec.Username) + "'"
+				tx := gormDB.Exec(createQuery)
+				Expect(tx.Error).To(BeNil())
+			}
+		})
+
+		JustAfterEach(func() {
+			if createUser {
+				dropQuery := "DROP USER IF EXISTS `" + Escape(user.Spec.Username) + "`"
+				tx := gormDB.Exec(dropQuery)
+				Expect(tx.Error).To(BeNil())
+			}
+		})
+
+		Context("User does exist in the table, and in the server, and it is a match.", func() {
+			It("returns true for mine.", func() {
+				isUserMine := adminConnection.UserMine(gormDB, user)
+				Expect(isUserMine).To(BeTrue())
+			})
+		})
+
+		Context("User doesn't exist in the table or server", func() {
+			BeforeEach(func() {
+				createUser = false
+				saveGormDb = false
+			})
+			It("returns true for mine.", func() {
+				isUserMine := adminConnection.UserMine(gormDB, user)
+				Expect(isUserMine).To(BeTrue())
+			})
+		})
+
+		Context("User does exist in the table, but not in the server", func() {
+			BeforeEach(func() {
+				createUser = false
+			})
+			It("returns true for mine.", func() {
+				isUserMine := adminConnection.UserMine(gormDB, user)
+				Expect(isUserMine).To(BeTrue())
+			})
+		})
+
+		Context("User does exist in the table, and in the server, but not my UID", func() {
+			BeforeEach(func() {
+				managedUser.Uuid = uuid.New().String()
+			})
+			It("returns false for mine.", func() {
+				isUserMine := adminConnection.UserMine(gormDB, user)
+				Expect(isUserMine).To(BeFalse())
+			})
+		})
+
+		Context("User does exist in the table, and in the server, but not my k8s name", func() {
+			BeforeEach(func() {
+				managedUser.Name = "wrongk8sname"
+			})
+			It("returns false for mine.", func() {
+				isUserMine := adminConnection.UserMine(gormDB, user)
+				Expect(isUserMine).To(BeFalse())
+			})
+		})
+
+		Context("User does exist in the table, and in the server, but not my k8s namespace", func() {
+			BeforeEach(func() {
+				managedUser.Namespace = "wrongnamespace"
+			})
+			It("returns false for mine.", func() {
+				isUserMine := adminConnection.UserMine(gormDB, user)
+				Expect(isUserMine).To(BeFalse())
+			})
+		})
+
+		Context("User does exist in the table, and in the server, but not my user name", func() {
+			BeforeEach(func() {
+				managedUser.Username = "wrongusername"
+			})
+			It("returns false for mine.", func() {
+				isUserMine := adminConnection.UserMine(gormDB, user)
+				Expect(isUserMine).To(BeFalse())
+			})
+		})
+	})
 })
