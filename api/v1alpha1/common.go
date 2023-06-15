@@ -20,9 +20,7 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
-	"github.com/go-logr/logr"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"math/big"
 	mrand "math/rand"
@@ -77,30 +75,6 @@ func GetSecret(ctx context.Context, client client.Client, namespace string, secr
 		return nil, err
 	}
 	return secret, nil
-}
-
-func GetAdminConnection(ctx context.Context, client client.Client, log logr.Logger, referrerNamespace string, adminConnection AdminConnectionRef) (*AdminConnection, error) {
-	toReturn := &AdminConnection{}
-	adminNamespace := referrerNamespace
-	if adminConnection.Namespace != "" {
-		adminNamespace = adminConnection.Namespace
-	}
-	adminConnectionNamespacedName := types.NamespacedName{
-		Namespace: adminNamespace,
-		Name:      adminConnection.Name,
-	}
-
-	err := client.Get(ctx, adminConnectionNamespacedName, toReturn)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			log.Info("AdminConnection resource not found. Object must be deleted")
-			return nil, err
-		}
-		// Error reading the object - requeue the request.
-		log.Error(err, "Failed to get AdminConnection")
-		return nil, err
-	}
-	return toReturn, err
 }
 
 // Escape Not all statements can be prepared with parameters (usernames/passwords).
