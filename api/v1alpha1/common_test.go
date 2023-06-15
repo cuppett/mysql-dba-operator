@@ -3,6 +3,7 @@ package v1alpha1
 import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	v1 "k8s.io/api/core/v1"
 	"regexp"
 )
 
@@ -11,6 +12,44 @@ var hasNumbers = regexp.MustCompile(`[0-9]+`).MatchString
 var hasUppers = regexp.MustCompile(`[A-Z]+`).MatchString
 
 var _ = Describe("Common", func() {
+
+	Describe("GetSecretRefValue", func() {
+		It("Should return the value of the secret", func() {
+			selector := &v1.SecretKeySelector{
+				LocalObjectReference: v1.LocalObjectReference{
+					Name: "test",
+				},
+				Key: "key",
+			}
+			val, err := GetSecretRefValue(ctx, k8sClient, "default", selector)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(val).To(Equal("value"))
+		})
+
+		It("Should return missing of the invalid secret data", func() {
+			selector := &v1.SecretKeySelector{
+				LocalObjectReference: v1.LocalObjectReference{
+					Name: "test",
+				},
+				Key: "key2",
+			}
+			val, err := GetSecretRefValue(ctx, k8sClient, "default", selector)
+			Expect(err).To(HaveOccurred())
+			Expect(val).To(BeEmpty())
+		})
+
+		It("Should return missing of the invalid secret", func() {
+			selector := &v1.SecretKeySelector{
+				LocalObjectReference: v1.LocalObjectReference{
+					Name: "test2",
+				},
+				Key: "key",
+			}
+			val, err := GetSecretRefValue(ctx, k8sClient, "default", selector)
+			Expect(err).To(HaveOccurred())
+			Expect(val).To(BeEmpty())
+		})
+	})
 
 	Describe("GeneratePassword", func() {
 		Describe("Special characters", func() {

@@ -21,7 +21,9 @@ import (
 	"crypto/tls"
 	"fmt"
 	"github.com/docker/docker/api/types/container"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"net"
 	"os"
 	"path/filepath"
@@ -85,6 +87,9 @@ var _ = BeforeSuite(func() {
 
 	scheme := runtime.NewScheme()
 	err = AddToScheme(scheme)
+	Expect(err).NotTo(HaveOccurred())
+
+	err = clientgoscheme.AddToScheme(scheme)
 	Expect(err).NotTo(HaveOccurred())
 
 	err = admissionv1beta1.AddToScheme(scheme)
@@ -165,6 +170,19 @@ var _ = BeforeSuite(func() {
 	}
 	err = k8sClient.Create(ctx, adminConnection)
 	Expect(err).NotTo(HaveOccurred())
+
+	// Adding a basic secret to the cluster
+	secret := v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test",
+			Namespace: "default",
+		},
+		Data: map[string][]byte{
+			"key": []byte("value"),
+		},
+	}
+	err = k8sClient.Create(ctx, &secret)
+	Expect(err).ToNot(HaveOccurred())
 })
 
 var _ = AfterSuite(func() {
