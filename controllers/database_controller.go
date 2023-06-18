@@ -85,10 +85,15 @@ func (r *DatabaseReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	// Getting admin connection
+	adminNamespace := loop.instance.Namespace
+	if loop.instance.Spec.AdminConnection.Namespace != "" {
+		adminNamespace = loop.instance.Spec.AdminConnection.Namespace
+	}
 	adminConnectionNamespacedName := types.NamespacedName{
-		Namespace: loop.instance.Spec.AdminConnection.Namespace,
+		Namespace: adminNamespace,
 		Name:      loop.instance.Spec.AdminConnection.Name,
 	}
+	loop.adminConnection = &mysqlv1alpha1.AdminConnection{}
 	err = r.Client.Get(ctx, adminConnectionNamespacedName, loop.adminConnection)
 	if err != nil {
 		return ctrl.Result{}, err

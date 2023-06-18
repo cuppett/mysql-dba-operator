@@ -115,14 +115,21 @@ var _ = BeforeSuite(func() {
 	err = (&mysqlv1alpha1.Database{}).SetupWebhookWithManager(mgr)
 	Expect(err).ToNot(HaveOccurred())
 
-	err = (&DatabaseUserReconciler{
+	err = (&AdminConnectionReconciler{
 		Client:      mgr.GetClient(),
 		Scheme:      mgr.GetScheme(),
 		Connections: connectionCache,
 	}).SetupWithManager(mgr)
 	Expect(err).ToNot(HaveOccurred())
 
-	err = (&AdminConnectionReconciler{
+	err = (&DatabaseReconciler{
+		Client:      mgr.GetClient(),
+		Scheme:      mgr.GetScheme(),
+		Connections: connectionCache,
+	}).SetupWithManager(mgr)
+	Expect(err).ToNot(HaveOccurred())
+
+	err = (&DatabaseUserReconciler{
 		Client:      mgr.GetClient(),
 		Scheme:      mgr.GetScheme(),
 		Connections: connectionCache,
