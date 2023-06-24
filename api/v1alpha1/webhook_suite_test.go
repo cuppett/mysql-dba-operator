@@ -140,7 +140,7 @@ var _ = BeforeSuite(func() {
 	// start mysql container
 	image, ok := os.LookupEnv("MYSQL_IMAGE")
 	if !ok {
-		image = "ghcr.io/cuppett/mariadb:10.11"
+		image = "ghcr.io/cuppett/mariadb:11.0"
 	}
 
 	mysqlContainer, err = RunContainer(ctx, testcontainers.WithImage(image),
