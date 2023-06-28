@@ -217,7 +217,7 @@ var _ = Describe("AdminConnection_Types", func() {
 
 		JustAfterEach(func() {
 			if createUser {
-				dropQuery := "DROP USER IF EXISTS `" + Escape(user.Spec.Username) + "`"
+				dropQuery := "DROP USER IF EXISTS '" + Escape(user.Spec.Username) + "'"
 				tx := gormDB.Exec(dropQuery)
 				Expect(tx.Error).To(BeNil())
 			}

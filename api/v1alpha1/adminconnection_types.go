@@ -66,6 +66,32 @@ type AdminConnectionStatus struct {
 	// Indicates current database is set and ready
 	// +kubebuilder:validation:Optional
 	ControlDatabase string `json:"controlDatabase,omitEmpty"`
+	// The default character set to be used for new databases where character set is not specified
+	// +kubebuilder:validation:Optional
+	// +nullable
+	CharacterSet string `json:"characterSet,omitEmpty"`
+	// The default collation to be used for new databases where collation is not specified
+	// +kubebuilder:validation:Optional
+	// +nullable
+	Collation string `json:"collation,omitEmpty"`
+	// The list of character sets and collations available in the server
+	// +kubebuilder:validation:Optional
+	// +nullable
+	AvailableCharsets []Charset `json:"availableCharsets,omitEmpty"`
+}
+
+type Charset struct {
+	// The name of the character set
+	Name string `json:"name,omitEmpty"`
+	// The list of collations available for the character set
+	Collations []Collation `json:"collations,omitEmpty"`
+}
+
+type Collation struct {
+	// The name of the collation
+	Name string `json:"name,omitEmpty"`
+	// Whether it is the default collation for the character set
+	Default bool `json:"default,omitEmpty"`
 }
 
 // +kubebuilder:object:root=true
