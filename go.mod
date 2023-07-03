@@ -8,7 +8,7 @@ require (
 	github.com/go-sql-driver/mysql v1.7.1
 	github.com/google/uuid v1.3.0
 	github.com/onsi/ginkgo/v2 v2.9.7
-	github.com/onsi/gomega v1.27.7
+	github.com/onsi/gomega v1.27.8
 	github.com/testcontainers/testcontainers-go v0.21.0
 	github.com/testcontainers/testcontainers-go/modules/mysql v0.21.0
 	go.uber.org/zap v1.24.0
