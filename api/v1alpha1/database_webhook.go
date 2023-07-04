@@ -54,7 +54,7 @@ var _ webhook.Validator = &Database{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (r *Database) ValidateCreate() (admission.Warnings, error) {
-	databaselog.Info("validate create", "name", r.Name)
+	databaselog.Info("validate create", "namespace", r.Namespace, "name", r.Name)
 
 	// See also: https://stackoverflow.com/questions/9537771/mysql-database-name-restrictions
 	if !nameRegEx.MatchString(r.Spec.Name) {
@@ -66,7 +66,7 @@ func (r *Database) ValidateCreate() (admission.Warnings, error) {
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
 func (r *Database) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
-	databaselog.Info("validate update", "name", r.Name)
+	databaselog.Info("validate update", "namespace", r.Namespace, "name", r.Name)
 
 	// Converting to Database type
 	oldDatabase := old.(*Database)
@@ -80,7 +80,7 @@ func (r *Database) ValidateUpdate(old runtime.Object) (admission.Warnings, error
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
 func (r *Database) ValidateDelete() (admission.Warnings, error) {
-	databaselog.Info("validate delete", "name", r.Name)
+	databaselog.Info("validate delete", "namespace", r.Namespace, "name", r.Name)
 	// Not implemented
 	return nil, nil
 }
