@@ -11,7 +11,7 @@ require (
 	github.com/onsi/gomega v1.27.10
 	github.com/testcontainers/testcontainers-go v0.23.0
 	github.com/testcontainers/testcontainers-go/modules/mysql v0.23.0
-	go.uber.org/zap v1.24.0
+	go.uber.org/zap v1.25.0
 	gorm.io/driver/mysql v1.5.1
 	gorm.io/gorm v1.25.4
 	k8s.io/api v0.27.2
@@ -74,8 +74,7 @@ require (
 	github.com/prometheus/procfs v0.9.0 // indirect
 	github.com/sirupsen/logrus v1.9.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	go.uber.org/atomic v1.7.0 // indirect
-	go.uber.org/multierr v1.6.0 // indirect
+	go.uber.org/multierr v1.10.0 // indirect
 	golang.org/x/exp v0.0.0-20230510235704-dd950f8aeaea // indirect
 	golang.org/x/mod v0.12.0 // indirect
 	golang.org/x/net v0.14.0 // indirect
