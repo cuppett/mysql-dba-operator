@@ -6,7 +6,7 @@ require (
 	github.com/docker/docker v24.0.5+incompatible
 	github.com/go-logr/logr v1.2.4
 	github.com/go-sql-driver/mysql v1.7.1
-	github.com/google/uuid v1.3.0
+	github.com/google/uuid v1.3.1
 	github.com/onsi/ginkgo/v2 v2.11.0
 	github.com/onsi/gomega v1.27.10
 	github.com/testcontainers/testcontainers-go v0.21.0
