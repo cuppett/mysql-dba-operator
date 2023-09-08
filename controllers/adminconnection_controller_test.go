@@ -13,9 +13,10 @@ var _ = Describe("AdminConnection", func() {
 
 	Describe("Testing AdminConnection for database and user happy paths", func() {
 
+		serverAdminConnection := &AdminConnection{}
+
 		It("should have good status", func(ctx SpecContext) {
 			Eventually(func() string {
-				serverAdminConnection := &AdminConnection{}
 				adminConnectionNamespacedName := types.NamespacedName{
 					Namespace: adminConnection.Namespace,
 					Name:      adminConnection.Name,
@@ -25,6 +26,12 @@ var _ = Describe("AdminConnection", func() {
 				return serverAdminConnection.Status.Message
 			}).WithContext(ctx).Should(Equal("Successfully pinged database"))
 		}, NodeTimeout(time.Second*30))
-	})
 
+		It("should have character set and collation data", func(ctx SpecContext) {
+			Expect(serverAdminConnection.Status.CharacterSet).ShouldNot(BeEmpty())
+			Expect(serverAdminConnection.Status.Collation).ShouldNot(BeEmpty())
+			Expect(serverAdminConnection.Status.AvailableCharsets).ShouldNot(BeEmpty())
+		})
+
+	})
 })
