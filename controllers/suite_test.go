@@ -54,7 +54,7 @@ var testEnv *envtest.Environment
 var ctx context.Context
 var cancel context.CancelFunc
 
-var adminConnection *mysqlv1alpha1.AdminConnection
+var ServerAdminConnection *mysqlv1alpha1.AdminConnection
 var mysqlContainer *MySQLContainer
 
 func TestAPIs(t *testing.T) {
@@ -166,7 +166,7 @@ var _ = BeforeSuite(func() {
 	port, err := mysqlContainer.MappedPort(ctx, "3306")
 	Expect(err).NotTo(HaveOccurred())
 
-	adminConnection = &mysqlv1alpha1.AdminConnection{
+	ServerAdminConnection = &mysqlv1alpha1.AdminConnection{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test",
 			Namespace: "default",
@@ -176,16 +176,16 @@ var _ = BeforeSuite(func() {
 			Port: int32(port.Int()),
 		},
 	}
-	err = k8sClient.Create(ctx, adminConnection)
+	err = k8sClient.Create(ctx, ServerAdminConnection)
 	Expect(err).NotTo(HaveOccurred())
 })
 
 var _ = AfterSuite(func() {
 	err := mysqlContainer.Terminate(ctx)
 	Expect(err).NotTo(HaveOccurred())
-	err = k8sClient.Delete(ctx, adminConnection)
+	err = k8sClient.Delete(ctx, ServerAdminConnection)
 	Expect(err).NotTo(HaveOccurred())
-	adminConnection = nil
+	ServerAdminConnection = nil
 
 	cancel()
 	By("tearing down the test environment")
