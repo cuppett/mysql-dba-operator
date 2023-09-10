@@ -23,6 +23,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"net"
 	"os"
@@ -53,12 +54,11 @@ import (
 // http://onsi.github.io/ginkgo/ to learn more about Ginkgo.
 
 var cfg *rest.Config
-var k8sClient client.Client
 var testEnv *envtest.Environment
 var ctx context.Context
 var cancel context.CancelFunc
 
-var adminConnection *AdminConnection
+var ServerAdminConnection *AdminConnection
 var mysqlContainer *MySQLContainer
 
 func TestAPIs(t *testing.T) {
@@ -163,7 +163,7 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 
 	// create admin connection
-	adminConnection = &AdminConnection{
+	ServerAdminConnection = &AdminConnection{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test",
 			Namespace: "default",
@@ -173,7 +173,40 @@ var _ = BeforeSuite(func() {
 			Port: int32(port.Int()),
 		},
 	}
-	err = k8sClient.Create(ctx, adminConnection)
+	err = k8sClient.Create(ctx, ServerAdminConnection)
+	Expect(err).NotTo(HaveOccurred())
+
+	// Fetch the actual instance back
+	adminConnectionNamespacedName := types.NamespacedName{
+		Namespace: ServerAdminConnection.Namespace,
+		Name:      ServerAdminConnection.Name,
+	}
+	ServerAdminConnection = &AdminConnection{}
+	err = k8sClient.Get(ctx, adminConnectionNamespacedName, ServerAdminConnection)
+	Expect(err).NotTo(HaveOccurred())
+
+	// Setting/saving status as if the controllers were running
+	ServerAdminConnection.Status.Message = "Successfully pinged database"
+	ServerAdminConnection.Status.SyncTime = metav1.Now()
+	ServerAdminConnection.Status.ControlDatabase = "zz_mysql_dba_operator_control"
+	ServerAdminConnection.Status.CharacterSet = "utf8mb4"
+	ServerAdminConnection.Status.Collation = "utf8mb4_general_ci"
+	ServerAdminConnection.Status.AvailableCharsets = []Charset{
+		{
+			Name: "utf8mb4",
+			Collations: []Collation{
+				{
+					Name:    "utf8mb4_general_ci",
+					Default: true,
+				},
+				{
+					Name:    "utf8mb4_unicode_ci",
+					Default: false,
+				},
+			},
+		},
+	}
+	err = k8sClient.Status().Update(ctx, ServerAdminConnection)
 	Expect(err).NotTo(HaveOccurred())
 
 	// Adding a basic secret to the cluster
@@ -195,9 +228,9 @@ var _ = AfterSuite(func() {
 
 	err = mysqlContainer.Terminate(ctx)
 	Expect(err).NotTo(HaveOccurred())
-	err = k8sClient.Delete(ctx, adminConnection)
+	err = k8sClient.Delete(ctx, ServerAdminConnection)
 	Expect(err).NotTo(HaveOccurred())
-	adminConnection = nil
+	ServerAdminConnection = nil
 
 	cancel()
 	By("tearing down the test environment")

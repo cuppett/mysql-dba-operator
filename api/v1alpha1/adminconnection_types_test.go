@@ -15,8 +15,8 @@ var _ = Describe("AdminConnection_Types", func() {
 	Describe("AllowedNamespace", func() {
 		DescribeTable("Namespace rules",
 			func(namespaceList []string, name string, good bool) {
-				adminConnection.Spec.AllowedNamespaces = namespaceList
-				condition := adminConnection.AllowedNamespace(name)
+				ServerAdminConnection.Spec.AllowedNamespaces = namespaceList
+				condition := ServerAdminConnection.AllowedNamespace(name)
 
 				if good {
 					Expect(condition).To(BeTrue())
@@ -45,7 +45,7 @@ var _ = Describe("AdminConnection_Types", func() {
 		var saveGormDb, createDb bool
 
 		BeforeEach(func() {
-			gormDB, err = adminConnection.GetDatabaseConnection(ctx, k8sClient, cache)
+			gormDB, err = ServerAdminConnection.GetDatabaseConnection(ctx, k8sClient, cache)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(gormDB).NotTo(BeNil())
 
@@ -97,7 +97,7 @@ var _ = Describe("AdminConnection_Types", func() {
 
 		Describe("Database does exist in the table, and in the server, and it is a match.", func() {
 			It("returns true for mine.", func() {
-				isDatabaseMine := adminConnection.DatabaseMine(gormDB, database)
+				isDatabaseMine := ServerAdminConnection.DatabaseMine(gormDB, database)
 				Expect(isDatabaseMine).To(BeTrue())
 			})
 		})
@@ -108,7 +108,7 @@ var _ = Describe("AdminConnection_Types", func() {
 				saveGormDb = false
 			})
 			It("returns true for mine.", func() {
-				isDatabaseMine := adminConnection.DatabaseMine(gormDB, database)
+				isDatabaseMine := ServerAdminConnection.DatabaseMine(gormDB, database)
 				Expect(isDatabaseMine).To(BeTrue())
 			})
 		})
@@ -118,7 +118,7 @@ var _ = Describe("AdminConnection_Types", func() {
 				createDb = false
 			})
 			It("returns true for mine.", func() {
-				isDatabaseMine := adminConnection.DatabaseMine(gormDB, database)
+				isDatabaseMine := ServerAdminConnection.DatabaseMine(gormDB, database)
 				Expect(isDatabaseMine).To(BeTrue())
 			})
 		})
@@ -128,7 +128,7 @@ var _ = Describe("AdminConnection_Types", func() {
 				managedDatabase.Uuid = uuid.New().String()
 			})
 			It("returns false for mine.", func() {
-				isDatabaseMine := adminConnection.DatabaseMine(gormDB, database)
+				isDatabaseMine := ServerAdminConnection.DatabaseMine(gormDB, database)
 				Expect(isDatabaseMine).To(BeFalse())
 			})
 		})
@@ -138,7 +138,7 @@ var _ = Describe("AdminConnection_Types", func() {
 				managedDatabase.Name = "wrongk8sname"
 			})
 			It("returns false for mine.", func() {
-				isDatabaseMine := adminConnection.DatabaseMine(gormDB, database)
+				isDatabaseMine := ServerAdminConnection.DatabaseMine(gormDB, database)
 				Expect(isDatabaseMine).To(BeFalse())
 			})
 		})
@@ -148,7 +148,7 @@ var _ = Describe("AdminConnection_Types", func() {
 				managedDatabase.Namespace = "wrongnamespace"
 			})
 			It("returns false for mine.", func() {
-				isDatabaseMine := adminConnection.DatabaseMine(gormDB, database)
+				isDatabaseMine := ServerAdminConnection.DatabaseMine(gormDB, database)
 				Expect(isDatabaseMine).To(BeFalse())
 			})
 		})
@@ -158,7 +158,7 @@ var _ = Describe("AdminConnection_Types", func() {
 				managedDatabase.DatabaseName = "wrongdatabasename"
 			})
 			It("returns false for mine.", func() {
-				isDatabaseMine := adminConnection.DatabaseMine(gormDB, database)
+				isDatabaseMine := ServerAdminConnection.DatabaseMine(gormDB, database)
 				Expect(isDatabaseMine).To(BeFalse())
 			})
 		})
@@ -173,7 +173,7 @@ var _ = Describe("AdminConnection_Types", func() {
 		var saveGormDb, createUser bool
 
 		BeforeEach(func() {
-			gormDB, err = adminConnection.GetDatabaseConnection(ctx, k8sClient, cache)
+			gormDB, err = ServerAdminConnection.GetDatabaseConnection(ctx, k8sClient, cache)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(gormDB).NotTo(BeNil())
 
@@ -225,7 +225,7 @@ var _ = Describe("AdminConnection_Types", func() {
 
 		Describe("User does exist in the table, and in the server, and it is a match.", func() {
 			It("returns true for mine.", func() {
-				isUserMine := adminConnection.UserMine(gormDB, user)
+				isUserMine := ServerAdminConnection.UserMine(gormDB, user)
 				Expect(isUserMine).To(BeTrue())
 			})
 		})
@@ -236,7 +236,7 @@ var _ = Describe("AdminConnection_Types", func() {
 				saveGormDb = false
 			})
 			It("returns true for mine.", func() {
-				isUserMine := adminConnection.UserMine(gormDB, user)
+				isUserMine := ServerAdminConnection.UserMine(gormDB, user)
 				Expect(isUserMine).To(BeTrue())
 			})
 		})
@@ -246,7 +246,7 @@ var _ = Describe("AdminConnection_Types", func() {
 				createUser = false
 			})
 			It("returns true for mine.", func() {
-				isUserMine := adminConnection.UserMine(gormDB, user)
+				isUserMine := ServerAdminConnection.UserMine(gormDB, user)
 				Expect(isUserMine).To(BeTrue())
 			})
 		})
@@ -256,7 +256,7 @@ var _ = Describe("AdminConnection_Types", func() {
 				managedUser.Uuid = uuid.New().String()
 			})
 			It("returns false for mine.", func() {
-				isUserMine := adminConnection.UserMine(gormDB, user)
+				isUserMine := ServerAdminConnection.UserMine(gormDB, user)
 				Expect(isUserMine).To(BeFalse())
 			})
 		})
@@ -266,7 +266,7 @@ var _ = Describe("AdminConnection_Types", func() {
 				managedUser.Name = "wrongk8sname"
 			})
 			It("returns false for mine.", func() {
-				isUserMine := adminConnection.UserMine(gormDB, user)
+				isUserMine := ServerAdminConnection.UserMine(gormDB, user)
 				Expect(isUserMine).To(BeFalse())
 			})
 		})
@@ -276,7 +276,7 @@ var _ = Describe("AdminConnection_Types", func() {
 				managedUser.Namespace = "wrongnamespace"
 			})
 			It("returns false for mine.", func() {
-				isUserMine := adminConnection.UserMine(gormDB, user)
+				isUserMine := ServerAdminConnection.UserMine(gormDB, user)
 				Expect(isUserMine).To(BeFalse())
 			})
 		})
@@ -286,7 +286,7 @@ var _ = Describe("AdminConnection_Types", func() {
 				managedUser.Username = "wrongusername"
 			})
 			It("returns false for mine.", func() {
-				isUserMine := adminConnection.UserMine(gormDB, user)
+				isUserMine := ServerAdminConnection.UserMine(gormDB, user)
 				Expect(isUserMine).To(BeFalse())
 			})
 		})
