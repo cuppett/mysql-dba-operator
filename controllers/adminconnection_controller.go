@@ -18,8 +18,10 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"github.com/cuppett/mysql-dba-operator/orm"
 	"github.com/go-logr/logr"
+	"gorm.io/gorm"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -73,15 +75,88 @@ func (r *AdminConnectionReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	defer r.Status().Update(ctx, instance)
 
 	// Establish the database connection
-	_, err = instance.GetDatabaseConnection(ctx, r.Client, r.Connections)
+	db, err := instance.GetDatabaseConnection(ctx, r.Client, r.Connections)
 	if err != nil {
 		instance.Status.Message = "Failed to connect or ping database"
+		return ctrl.Result{}, err
+	}
+
+	instance.Status.CharacterSet, err = r.getVariable("character_set_server", db)
+	if err != nil {
+		instance.Status.Message = "Failed to retrieve default server character set"
+		return ctrl.Result{}, err
+	}
+
+	instance.Status.Collation, err = r.getVariable("collation_server", db)
+	if err != nil {
+		instance.Status.Message = "Failed to retrieve default server collation"
+		return ctrl.Result{}, err
+	}
+
+	instance.Status.AvailableCharsets, err = r.getCharSets(db)
+	if err != nil {
+		instance.Status.Message = "Failed to retrieve available character sets"
 		return ctrl.Result{}, err
 	}
 
 	instance.Status.Message = "Successfully pinged database"
 	instance.Status.ControlDatabase = orm.DatabaseName
 	return ctrl.Result{}, nil
+}
+
+func (r *AdminConnectionReconciler) getVariable(name string, db *gorm.DB) (string, error) {
+
+	var results []map[string]interface{}
+	query := "SHOW VARIABLES LIKE '" + mysqlv1alpha1.Escape(name) + "'"
+	tx := db.Raw(query).Scan(&results)
+	if tx.Error != nil {
+		return "", tx.Error
+	}
+
+	if len(results) != 1 {
+		return "", fmt.Errorf("expected 1 row, got %v", len(results))
+	}
+
+	return results[0]["Value"].(string), nil
+}
+
+func (r *AdminConnectionReconciler) getCharSets(db *gorm.DB) ([]mysqlv1alpha1.Charset, error) {
+
+	var toReturn []mysqlv1alpha1.Charset
+
+	query := "SHOW COLLATION WHERE Charset IS NOT NULL"
+	var results []map[string]interface{}
+	tx := db.Raw(query).Scan(&results)
+	if tx.Error != nil {
+		return toReturn, tx.Error
+	}
+
+	var collation, charset string
+	var isDefault bool
+	var sortedResults map[string][]mysqlv1alpha1.Collation
+	sortedResults = make(map[string][]mysqlv1alpha1.Collation)
+	for _, row := range results {
+		collation = row["Collation"].(string)
+		charset = row["Charset"].(string)
+		isDefault = row["Default"].(string) == "Yes"
+
+		if _, ok := sortedResults[charset]; !ok {
+			sortedResults[charset] = make([]mysqlv1alpha1.Collation, 0)
+		}
+		sortedResults[charset] = append(sortedResults[charset], mysqlv1alpha1.Collation{
+			Name:    collation,
+			Default: isDefault,
+		})
+	}
+
+	for charset, collations := range sortedResults {
+		toReturn = append(toReturn, mysqlv1alpha1.Charset{
+			Name:       charset,
+			Collations: collations,
+		})
+	}
+
+	return toReturn, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

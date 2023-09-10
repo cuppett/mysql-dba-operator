@@ -104,6 +104,47 @@ spec:
           status:
             description: AdminConnectionStatus defines the observed state of AdminConnection
             properties:
+              availableCharsets:
+                description: The list of character sets and collations available in
+                  the server
+                items:
+                  properties:
+                    collations:
+                      description: The list of collations available for the character
+                        set
+                      items:
+                        properties:
+                          default:
+                            description: Whether it is the default collation for the
+                              character set
+                            type: boolean
+                          name:
+                            description: The name of the collation
+                            type: string
+                        required:
+                        - default
+                        - name
+                        type: object
+                      type: array
+                    name:
+                      description: The name of the character set
+                      type: string
+                  required:
+                  - collations
+                  - name
+                  type: object
+                nullable: true
+                type: array
+              characterSet:
+                description: The default character set to be used for new databases
+                  where character set is not specified
+                nullable: true
+                type: string
+              collation:
+                description: The default collation to be used for new databases where
+                  collation is not specified
+                nullable: true
+                type: string
               controlDatabase:
                 description: Indicates current database is set and ready
                 type: string

@@ -5,26 +5,29 @@ import (
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/types"
 	"time"
-
-	. "github.com/cuppett/mysql-dba-operator/api/v1alpha1"
 )
 
-var _ = Describe("AdminConnection", func() {
+var _ = Describe("ServerAdminConnection", func() {
 
-	Describe("Testing AdminConnection for database and user happy paths", func() {
+	Describe("Testing ServerAdminConnection for database and user happy paths", func() {
 
 		It("should have good status", func(ctx SpecContext) {
 			Eventually(func() string {
-				serverAdminConnection := &AdminConnection{}
 				adminConnectionNamespacedName := types.NamespacedName{
-					Namespace: adminConnection.Namespace,
-					Name:      adminConnection.Name,
+					Namespace: ServerAdminConnection.Namespace,
+					Name:      ServerAdminConnection.Name,
 				}
-				err := k8sClient.Get(ctx, adminConnectionNamespacedName, serverAdminConnection)
+				err := k8sClient.Get(ctx, adminConnectionNamespacedName, ServerAdminConnection)
 				Expect(err).ToNot(HaveOccurred())
-				return serverAdminConnection.Status.Message
+				return ServerAdminConnection.Status.Message
 			}).WithContext(ctx).Should(Equal("Successfully pinged database"))
 		}, NodeTimeout(time.Second*30))
-	})
 
+		It("should have character set and collation data", func(ctx SpecContext) {
+			Expect(ServerAdminConnection.Status.CharacterSet).ShouldNot(BeEmpty())
+			Expect(ServerAdminConnection.Status.Collation).ShouldNot(BeEmpty())
+			Expect(ServerAdminConnection.Status.AvailableCharsets).ShouldNot(BeEmpty())
+		})
+
+	})
 })

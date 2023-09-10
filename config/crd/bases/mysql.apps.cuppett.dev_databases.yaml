@@ -50,6 +50,7 @@ spec:
                 type: string
               collate:
                 maxLength: 64
+                nullable: true
                 type: string
               name:
                 maxLength: 64

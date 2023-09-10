@@ -37,6 +37,7 @@ type DatabaseSpec struct {
 	CharacterSet string `json:"characterSet,omitEmpty"`
 	// +kubebuilder:validation:MaxLength:=64
 	// +kubebuilder:validation:Optional
+	// +nullable
 	Collate string `json:"collate,omitEmpty"`
 }
 

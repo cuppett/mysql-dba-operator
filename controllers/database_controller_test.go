@@ -5,7 +5,6 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"time"
 
@@ -13,26 +12,6 @@ import (
 )
 
 var _ = Describe("Database", func() {
-
-	It("Has good connection", func(ctx SpecContext) {
-		serverAdminConnection := &AdminConnection{}
-		Eventually(func() string {
-			adminConnectionNamespacedName := types.NamespacedName{
-				Namespace: adminConnection.Namespace,
-				Name:      adminConnection.Name,
-			}
-			err := k8sClient.Get(ctx, adminConnectionNamespacedName, serverAdminConnection)
-			if err != nil {
-				if errors.IsNotFound(err) {
-					return "AdminConnection resource not found. Object must be deleted"
-				}
-				// Error reading the object - requeue the request.
-				return err.Error()
-			}
-			return serverAdminConnection.Status.Message
-		}).WithContext(ctx).Should(Equal("Successfully pinged database"))
-		adminConnection = serverAdminConnection
-	}, NodeTimeout(time.Second*30))
 
 	Describe("Creation Scenario", func() {
 
@@ -43,11 +22,11 @@ var _ = Describe("Database", func() {
 			database = &Database{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-database",
-					Namespace: adminConnection.Namespace,
+					Namespace: ServerAdminConnection.Namespace,
 				},
 				Spec: DatabaseSpec{
 					AdminConnection: AdminConnectionRef{
-						Name: adminConnection.Name,
+						Name: ServerAdminConnection.Name,
 					},
 					Name: "test-database",
 				},
