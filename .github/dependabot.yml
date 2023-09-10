@@ -17,5 +17,5 @@ updates:
     interval: monthly
     time: "07:00"
   ignore:
-  - dependency-name: "library/golang"
+  - dependency-name: "cuppett/golang"
   open-pull-requests-limit: 10
