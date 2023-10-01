@@ -224,8 +224,8 @@ github.com/stretchr/testify v1.8.4/go.mod h1:sz/lmYIOXD/1dqDmKjjqLyZ2RngseejIcXl
 github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635/go.mod h1:hkRG7XYTFWNJGYcbNJQlaLq0fg1yr4J4t/NcTQtrfww=
 github.com/testcontainers/testcontainers-go v0.25.0 h1:erH6cQjsaJrH+rJDU9qIf89KFdhK0Bft0aEZHlYC3Vs=
 github.com/testcontainers/testcontainers-go v0.25.0/go.mod h1:4sC9SiJyzD1XFi59q8umTQYWxnkweEc5OjVtTUlJzqQ=
-github.com/testcontainers/testcontainers-go/modules/mysql v0.23.0 h1:qGR9z0sCx2UsW8tMHQpOQA5Hvrm/0xY+oNn8DRaWIoU=
-github.com/testcontainers/testcontainers-go/modules/mysql v0.23.0/go.mod h1:2ecz7+xtcVvOF4QvbGJJ+mfjqT/Pk9Xyd0YCHGJ++JM=
+github.com/testcontainers/testcontainers-go/modules/mysql v0.25.0 h1:c2EKpcV43pJnR9f81bNtHbFZdrft0RgJLh0GB0AChX8=
+github.com/testcontainers/testcontainers-go/modules/mysql v0.25.0/go.mod h1:0TanaVQNvWZOltJ0bfFOvEZ7nWYVn80tGNq1q0TFN4Y=
 github.com/tklauser/go-sysconf v0.3.12 h1:0QaGUFOdQaIVdPgfITYzaTegZvdCjmYO52cSFAEVmqU=
 github.com/tklauser/go-sysconf v0.3.12/go.mod h1:Ho14jnntGE1fpdOqQEEaiKRpvIavV0hSfmBq8nJbHYI=
 github.com/tklauser/numcpus v0.6.1 h1:ng9scYS7az0Bk4OZLvrNXNSAO2Pxr1XXRAPyjhIx+Fk=
