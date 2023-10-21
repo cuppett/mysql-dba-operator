@@ -28,6 +28,7 @@ import (
 	"os"
 	"path/filepath"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"testing"
 	"time"
 
@@ -53,7 +54,7 @@ var testEnv *envtest.Environment
 var ctx context.Context
 var cancel context.CancelFunc
 
-var adminConnection *mysqlv1alpha1.AdminConnection
+var ServerAdminConnection *mysqlv1alpha1.AdminConnection
 var mysqlContainer *MySQLContainer
 
 func TestAPIs(t *testing.T) {
@@ -93,12 +94,16 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	Expect(k8sClient).NotTo(BeNil())
 
-	webhookInstallOptions := &testEnv.WebhookInstallOptions
+	webhookInstallOptions := webhook.Options{
+		Host:    testEnv.WebhookInstallOptions.LocalServingHost,
+		Port:    testEnv.WebhookInstallOptions.LocalServingPort,
+		CertDir: testEnv.WebhookInstallOptions.LocalServingCertDir,
+	}
+	webhookServer := webhook.NewServer(webhookInstallOptions)
+
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme:             scheme.Scheme,
-		Host:               webhookInstallOptions.LocalServingHost,
-		Port:               webhookInstallOptions.LocalServingPort,
-		CertDir:            webhookInstallOptions.LocalServingCertDir,
+		WebhookServer:      webhookServer,
 		LeaderElection:     false,
 		MetricsBindAddress: "0",
 	})
@@ -144,7 +149,7 @@ var _ = BeforeSuite(func() {
 
 	image, ok := os.LookupEnv("MYSQL_IMAGE")
 	if !ok {
-		image = "ghcr.io/cuppett/mariadb:10.11"
+		image = "ghcr.io/cuppett/mariadb:11.0"
 	}
 
 	mysqlContainer, err = RunContainer(ctx, testcontainers.WithImage(image),
@@ -161,7 +166,7 @@ var _ = BeforeSuite(func() {
 	port, err := mysqlContainer.MappedPort(ctx, "3306")
 	Expect(err).NotTo(HaveOccurred())
 
-	adminConnection = &mysqlv1alpha1.AdminConnection{
+	ServerAdminConnection = &mysqlv1alpha1.AdminConnection{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test",
 			Namespace: "default",
@@ -171,16 +176,16 @@ var _ = BeforeSuite(func() {
 			Port: int32(port.Int()),
 		},
 	}
-	err = k8sClient.Create(ctx, adminConnection)
+	err = k8sClient.Create(ctx, ServerAdminConnection)
 	Expect(err).NotTo(HaveOccurred())
 })
 
 var _ = AfterSuite(func() {
 	err := mysqlContainer.Terminate(ctx)
 	Expect(err).NotTo(HaveOccurred())
-	err = k8sClient.Delete(ctx, adminConnection)
+	err = k8sClient.Delete(ctx, ServerAdminConnection)
 	Expect(err).NotTo(HaveOccurred())
-	adminConnection = nil
+	ServerAdminConnection = nil
 
 	cancel()
 	By("tearing down the test environment")

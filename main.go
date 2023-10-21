@@ -17,11 +17,13 @@ limitations under the License.
 package main
 
 import (
+	"crypto/tls"
 	"flag"
 	"github.com/cuppett/mysql-dba-operator/orm"
 	"go.uber.org/zap/zapcore"
 	"k8s.io/apimachinery/pkg/types"
 	"os"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -56,12 +58,14 @@ func main() {
 	var enableLeaderElection bool
 	var probeAddr string
 	var connectionCache = make(map[types.UID]*orm.ConnectionDefinition)
+	var enableHTTP2 bool
 
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
+	flag.BoolVar(&enableHTTP2, "enable-http2", enableHTTP2, "If HTTP/2 should be enabled for the metrics and webhook servers.")
 	opts := zap.Options{
 		Development: true,
 		TimeEncoder: zapcore.ISO8601TimeEncoder,
@@ -71,13 +75,26 @@ func main() {
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
+	disableHTTP2 := func(c *tls.Config) {
+		if enableHTTP2 {
+			return
+		}
+		c.NextProtos = []string{"http/1.1"}
+	}
+
+	webhookServerOptions := webhook.Options{
+		TLSOpts: []func(config *tls.Config){disableHTTP2},
+	}
+
+	webhookServer := webhook.NewServer(webhookServerOptions)
+
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
 		MetricsBindAddress:     metricsAddr,
-		Port:                   9443,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "c5e62347.cuppett.dev",
+		WebhookServer:          webhookServer,
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
@@ -93,6 +110,7 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "Database")
 		os.Exit(1)
 	}
+
 	if err = (&mysqlv1alpha1.Database{}).SetupWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "Database")
 		os.Exit(1)

@@ -155,7 +155,7 @@ removed/dropped.
 * [Operator SDK](https://sdk.operatorframework.io/docs/installation/)
 * [Kustomize](https://kubectl.docs.kubernetes.io/installation/kustomize/)
 * [Testcontainers for Go](https://golang.testcontainers.org/)
-* [Docker](https://docs.docker.com/get-docker/) -or - [Podman](https://podman.io/getting-started/installation)
+* [Docker](https://docs.docker.com/get-docker/) -or- [Podman](https://podman.io/getting-started/installation)
 
 ### Testing
 

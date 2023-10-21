@@ -23,10 +23,12 @@ import (
 	"github.com/docker/docker/api/types/container"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"net"
 	"os"
 	"path/filepath"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"testing"
 	"time"
 
@@ -52,12 +54,11 @@ import (
 // http://onsi.github.io/ginkgo/ to learn more about Ginkgo.
 
 var cfg *rest.Config
-var k8sClient client.Client
 var testEnv *envtest.Environment
 var ctx context.Context
 var cancel context.CancelFunc
 
-var adminConnection *AdminConnection
+var ServerAdminConnection *AdminConnection
 var mysqlContainer *MySQLContainer
 
 func TestAPIs(t *testing.T) {
@@ -102,12 +103,21 @@ var _ = BeforeSuite(func() {
 	Expect(k8sClient).NotTo(BeNil())
 
 	// start webhook server using Manager
-	webhookInstallOptions := &testEnv.WebhookInstallOptions
+	disableHTTP2 := func(c *tls.Config) {
+		c.NextProtos = []string{"http/1.1"}
+	}
+
+	webhookInstallOptions := webhook.Options{
+		Host:    testEnv.WebhookInstallOptions.LocalServingHost,
+		Port:    testEnv.WebhookInstallOptions.LocalServingPort,
+		CertDir: testEnv.WebhookInstallOptions.LocalServingCertDir,
+		TLSOpts: []func(config *tls.Config){disableHTTP2},
+	}
+	webhookServer := webhook.NewServer(webhookInstallOptions)
+
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme:             scheme,
-		Host:               webhookInstallOptions.LocalServingHost,
-		Port:               webhookInstallOptions.LocalServingPort,
-		CertDir:            webhookInstallOptions.LocalServingCertDir,
+		WebhookServer:      webhookServer,
 		LeaderElection:     false,
 		MetricsBindAddress: "0",
 	})
@@ -127,7 +137,7 @@ var _ = BeforeSuite(func() {
 
 	// wait for the webhook server to get ready
 	dialer := &net.Dialer{Timeout: time.Second}
-	addrPort := fmt.Sprintf("%s:%d", webhookInstallOptions.LocalServingHost, webhookInstallOptions.LocalServingPort)
+	addrPort := fmt.Sprintf("%s:%d", webhookInstallOptions.Host, webhookInstallOptions.Port)
 	Eventually(func() error {
 		conn, err := tls.DialWithDialer(dialer, "tcp", addrPort, &tls.Config{InsecureSkipVerify: true})
 		if err != nil {
@@ -140,7 +150,7 @@ var _ = BeforeSuite(func() {
 	// start mysql container
 	image, ok := os.LookupEnv("MYSQL_IMAGE")
 	if !ok {
-		image = "ghcr.io/cuppett/mariadb:10.11"
+		image = "ghcr.io/cuppett/mariadb:11.0"
 	}
 
 	mysqlContainer, err = RunContainer(ctx, testcontainers.WithImage(image),
@@ -158,7 +168,7 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 
 	// create admin connection
-	adminConnection = &AdminConnection{
+	ServerAdminConnection = &AdminConnection{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test",
 			Namespace: "default",
@@ -168,7 +178,40 @@ var _ = BeforeSuite(func() {
 			Port: int32(port.Int()),
 		},
 	}
-	err = k8sClient.Create(ctx, adminConnection)
+	err = k8sClient.Create(ctx, ServerAdminConnection)
+	Expect(err).NotTo(HaveOccurred())
+
+	// Fetch the actual instance back
+	adminConnectionNamespacedName := types.NamespacedName{
+		Namespace: ServerAdminConnection.Namespace,
+		Name:      ServerAdminConnection.Name,
+	}
+	ServerAdminConnection = &AdminConnection{}
+	err = k8sClient.Get(ctx, adminConnectionNamespacedName, ServerAdminConnection)
+	Expect(err).NotTo(HaveOccurred())
+
+	// Setting/saving status as if the controllers were running
+	ServerAdminConnection.Status.Message = "Successfully pinged database"
+	ServerAdminConnection.Status.SyncTime = metav1.Now()
+	ServerAdminConnection.Status.ControlDatabase = "zz_mysql_dba_operator_control"
+	ServerAdminConnection.Status.CharacterSet = "utf8mb4"
+	ServerAdminConnection.Status.Collation = "utf8mb4_general_ci"
+	ServerAdminConnection.Status.AvailableCharsets = []Charset{
+		{
+			Name: "utf8mb4",
+			Collations: []Collation{
+				{
+					Name:    "utf8mb4_general_ci",
+					Default: true,
+				},
+				{
+					Name:    "utf8mb4_unicode_ci",
+					Default: false,
+				},
+			},
+		},
+	}
+	err = k8sClient.Status().Update(ctx, ServerAdminConnection)
 	Expect(err).NotTo(HaveOccurred())
 
 	// Adding a basic secret to the cluster
@@ -190,9 +233,9 @@ var _ = AfterSuite(func() {
 
 	err = mysqlContainer.Terminate(ctx)
 	Expect(err).NotTo(HaveOccurred())
-	err = k8sClient.Delete(ctx, adminConnection)
+	err = k8sClient.Delete(ctx, ServerAdminConnection)
 	Expect(err).NotTo(HaveOccurred())
-	adminConnection = nil
+	ServerAdminConnection = nil
 
 	cancel()
 	By("tearing down the test environment")
