@@ -103,10 +103,15 @@ var _ = BeforeSuite(func() {
 	Expect(k8sClient).NotTo(BeNil())
 
 	// start webhook server using Manager
+	disableHTTP2 := func(c *tls.Config) {
+		c.NextProtos = []string{"http/1.1"}
+	}
+
 	webhookInstallOptions := webhook.Options{
 		Host:    testEnv.WebhookInstallOptions.LocalServingHost,
 		Port:    testEnv.WebhookInstallOptions.LocalServingPort,
 		CertDir: testEnv.WebhookInstallOptions.LocalServingCertDir,
+		TLSOpts: []func(config *tls.Config){disableHTTP2},
 	}
 	webhookServer := webhook.NewServer(webhookInstallOptions)
 
