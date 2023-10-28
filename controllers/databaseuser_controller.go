@@ -366,15 +366,17 @@ func (r *DatabaseUserReconciler) userDetailString(ctx context.Context, loop *Use
 			passwordUpdated = true
 		}
 
-		authString, err = mysqlv1alpha1.GetSecretRefValue(ctx, r.Client, loop.instance.Namespace,
-			&loop.instance.Spec.Identification.AuthString.SecretKeyRef)
-		if err != nil {
-			r.Log.Error(err, "Failed to read user auth string", "Host",
-				loop.adminConnection.Spec.Host, "Name", loop.instance.Status.Username, "Secret",
-				loop.instance.Spec.Identification.AuthString.SecretKeyRef.Name)
-			return queryFragment, err
+		if loop.instance.Spec.Identification.AuthString != nil {
+			authString, err = mysqlv1alpha1.GetSecretRefValue(ctx, r.Client, loop.instance.Namespace,
+				&loop.instance.Spec.Identification.AuthString.SecretKeyRef)
+			if err != nil {
+				r.Log.Error(err, "Failed to read user auth string", "Host",
+					loop.adminConnection.Spec.Host, "Name", loop.instance.Status.Username, "Secret",
+					loop.instance.Spec.Identification.AuthString.SecretKeyRef.Name)
+				return queryFragment, err
+			}
+			authString = mysqlv1alpha1.Escape(authString)
 		}
-		authString = mysqlv1alpha1.Escape(authString)
 
 		authPlugin = loop.instance.Spec.Identification.AuthPlugin
 		if loop.instance.Status.Identification != nil &&
