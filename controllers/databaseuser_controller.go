@@ -50,7 +50,7 @@ type DatabaseUserReconciler struct {
 	Connections map[types.UID]*orm.ConnectionDefinition
 }
 
-// Custom variables used for the reconciliation loops
+// UserLoopContext Custom variables used for the reconciliation loops
 type UserLoopContext struct {
 	instance        *mysqlv1alpha1.DatabaseUser
 	adminConnection *mysqlv1alpha1.AdminConnection
@@ -91,33 +91,55 @@ func (r *DatabaseUserReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	// Getting admin connection
-	adminNamespace := loop.instance.Namespace
-	if loop.instance.Spec.AdminConnection.Namespace != "" {
-		adminNamespace = loop.instance.Spec.AdminConnection.Namespace
+	var adminErr error
+	loop.adminConnection, adminErr = mysqlv1alpha1.GetAdminConnection(ctx, r.Client, loop.instance.Namespace, loop.instance.Spec.AdminConnection)
+	if adminErr == nil && loop.adminConnection != nil {
+		// Grabbing actual database connection here.
+		loop.db, adminErr = loop.adminConnection.GetDatabaseConnection(ctx, r.Client, r.Connections)
+		if adminErr != nil {
+			// This could be temporary, we have no way to really know.
+			loop.adminConnection = nil
+		}
 	}
-	adminConnectionNamespacedName := types.NamespacedName{
-		Namespace: adminNamespace,
-		Name:      loop.instance.Spec.AdminConnection.Name,
-	}
-	loop.adminConnection = &mysqlv1alpha1.AdminConnection{}
-	err = r.Client.Get(ctx, adminConnectionNamespacedName, loop.adminConnection)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-	r.Log.WithValues("AdminConnection", types.NamespacedName{Name: loop.adminConnection.Name, Namespace: loop.adminConnection.Namespace})
 
-	// Check this is an allowed admin connection. If not, just stop here.
-	if !loop.adminConnection.AllowedNamespace(req.Namespace) {
-		r.Log.Info("Namespace not permitted by AdminConnection for this namespace")
-		loop.instance.Status.Message = "Failed to reconcile against current admin connection (not permitted by AdminConnection)."
+	// Check if the user instance is marked to be deleted, which is
+	// indicated by the deletion timestamp being set.
+	isUserMarkedToBeDeleted := loop.instance.GetDeletionTimestamp() != nil
+	if isUserMarkedToBeDeleted {
+		if controllerutil.ContainsFinalizer(loop.instance, userFinalizer) {
+			// Run finalization logic for the database. If the
+			// finalization logic fails, don't remove the finalizer so
+			// that we can retry during the next reconciliation.
+			if loop.adminConnection != nil && loop.db != nil && loop.adminConnection.UserMine(loop.db, loop.instance) {
+				if err := r.finalizeUser(&loop); err != nil {
+					return ctrl.Result{}, err
+				}
+			} else {
+				r.Log.Info("Unable or not permitted to delete user, finalizing without dropping",
+					"Host", loop.adminConnection.Spec.Host, "Name", loop.instance.Status.Username)
+			}
+
+			// Remove userFinalizer. Once all finalizers have been
+			// removed, the object will be deleted.
+			controllerutil.RemoveFinalizer(loop.instance, userFinalizer)
+			err := r.Update(ctx, loop.instance)
+			if err != nil {
+				r.Log.Error(err, "Failure removing the finalizer.")
+				return ctrl.Result{}, err
+			}
+		}
+		return ctrl.Result{}, nil
+	}
+
+	if loop.adminConnection == nil {
+		r.Log.Error(adminErr, "Failed to obtain AdminConnection or connection to database")
+		loop.instance.Status.Message = "Failed to further reconcile against current admin connection."
 		err = r.Status().Update(ctx, loop.instance)
-		return ctrl.Result{}, err
-	}
-
-	// Establish the database connection
-	loop.db, err = loop.adminConnection.GetDatabaseConnection(ctx, r.Client, r.Connections)
-	if err != nil {
-		return ctrl.Result{}, err
+		if err != nil {
+			return ctrl.Result{}, err
+		} else {
+			return ctrl.Result{}, adminErr
+		}
 	}
 
 	// Getting the secret
@@ -135,32 +157,6 @@ func (r *DatabaseUserReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 	if err != nil {
 		return ctrl.Result{}, err
-	}
-
-	// Check if the user instance is marked to be deleted, which is
-	// indicated by the deletion timestamp being set.
-	isUserMarkedToBeDeleted := loop.instance.GetDeletionTimestamp() != nil
-	if isUserMarkedToBeDeleted {
-		if controllerutil.ContainsFinalizer(loop.instance, userFinalizer) {
-			// Run finalization logic for the database. If the
-			// finalization logic fails, don't remove the finalizer so
-			// that we can retry during the next reconciliation.
-			if loop.adminConnection.UserMine(loop.db, loop.instance) {
-				if err := r.finalizeUser(&loop); err != nil {
-					return ctrl.Result{}, err
-				}
-			}
-
-			// Remove stacksFinalizer. Once all finalizers have been
-			// removed, the object will be deleted.
-			controllerutil.RemoveFinalizer(loop.instance, userFinalizer)
-			err := r.Update(ctx, loop.instance)
-			if err != nil {
-				r.Log.Error(err, "Failure removing the finalizer.")
-				return ctrl.Result{}, err
-			}
-		}
-		return ctrl.Result{}, nil
 	}
 
 	if loop.instance.Status.Username == "" {
@@ -268,7 +264,7 @@ func (r *DatabaseUserReconciler) userCreate(ctx context.Context, loop *UserLoopC
 	createQuery := "CREATE USER '" + mysqlv1alpha1.Escape(loop.instance.Status.Username) + "'"
 	params := make([]interface{}, 0)
 
-	userDetails, err := r.userDetailString(ctx, loop, false)
+	userDetails, err := r.userDetailString(ctx, loop)
 	if err != nil {
 		return err
 	}
@@ -320,7 +316,7 @@ func (r *DatabaseUserReconciler) userUpdate(ctx context.Context, loop *UserLoopC
 	}
 
 	// Determining if we need to update the user wrt their authentication
-	userDetails, err := r.userDetailString(ctx, loop, true)
+	userDetails, err := r.userDetailString(ctx, loop)
 	if err != nil {
 		return false, err
 	}
@@ -354,7 +350,7 @@ func (r *DatabaseUserReconciler) userUpdate(ctx context.Context, loop *UserLoopC
 	return permsDiff, err
 }
 
-func (r *DatabaseUserReconciler) userDetailString(ctx context.Context, loop *UserLoopContext, update bool) (string, error) {
+func (r *DatabaseUserReconciler) userDetailString(ctx context.Context, loop *UserLoopContext) (string, error) {
 
 	var err error
 	queryFragment := ""

@@ -85,33 +85,15 @@ func (r *DatabaseReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	// Getting admin connection
-	adminNamespace := loop.instance.Namespace
-	if loop.instance.Spec.AdminConnection.Namespace != "" {
-		adminNamespace = loop.instance.Spec.AdminConnection.Namespace
-	}
-	adminConnectionNamespacedName := types.NamespacedName{
-		Namespace: adminNamespace,
-		Name:      loop.instance.Spec.AdminConnection.Name,
-	}
-	loop.adminConnection = &mysqlv1alpha1.AdminConnection{}
-	err = r.Client.Get(ctx, adminConnectionNamespacedName, loop.adminConnection)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-	r.Log.WithValues("AdminConnection", types.NamespacedName{Name: loop.adminConnection.Name, Namespace: loop.adminConnection.Namespace})
-
-	// Check this is an allowed admin connection. If not, just stop here.
-	if !loop.adminConnection.AllowedNamespace(req.Namespace) {
-		r.Log.Info("Namespace not permitted by AdminConnection for this namespace")
-		loop.instance.Status.Message = "Failed to reconcile against current admin connection (not permitted by AdminConnection)."
-		err = r.Status().Update(ctx, loop.instance)
-		return ctrl.Result{}, err
-	}
-
-	// Establish the database connection
-	loop.db, err = loop.adminConnection.GetDatabaseConnection(ctx, r.Client, r.Connections)
-	if err != nil {
-		return ctrl.Result{}, err
+	var adminErr error
+	loop.adminConnection, adminErr = mysqlv1alpha1.GetAdminConnection(ctx, r.Client, loop.instance.Namespace, loop.instance.Spec.AdminConnection)
+	if adminErr == nil && loop.adminConnection != nil {
+		// Grabbing actual database connection here.
+		loop.db, adminErr = loop.adminConnection.GetDatabaseConnection(ctx, r.Client, r.Connections)
+		if adminErr != nil {
+			// This could be temporary, we have no way to really know.
+			loop.adminConnection = nil
+		}
 	}
 
 	// Check if the database instance is marked to be deleted, which is
@@ -122,13 +104,16 @@ func (r *DatabaseReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 			// Run finalization logic for the database. If the
 			// finalization logic fails, don't remove the finalizer so
 			// that we can retry during the next reconciliation.
-			if loop.adminConnection.DatabaseMine(loop.db, loop.instance) {
+			if loop.adminConnection != nil && loop.db != nil && loop.adminConnection.DatabaseMine(loop.db, loop.instance) {
 				if err := r.finalizeDatabase(&loop); err != nil {
 					return ctrl.Result{}, err
 				}
+			} else {
+				r.Log.Info("Unable or not permitted to delete database, finalizing without dropping",
+					"Host", loop.adminConnection.Spec.Host, "Name", loop.instance.Status.Name)
 			}
 
-			// Remove stacksFinalizer. Once all finalizers have been
+			// Remove dbFinalizer. Once all finalizers have been
 			// removed, the object will be deleted.
 			controllerutil.RemoveFinalizer(loop.instance, dbFinalizer)
 			err := r.Update(ctx, loop.instance)
@@ -139,6 +124,17 @@ func (r *DatabaseReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		}
 
 		return ctrl.Result{}, nil
+	}
+
+	if loop.adminConnection == nil {
+		r.Log.Error(adminErr, "Failed to obtain AdminConnection or connection to database")
+		loop.instance.Status.Message = "Failed to further reconcile against current admin connection."
+		err = r.Status().Update(ctx, loop.instance)
+		if err != nil {
+			return ctrl.Result{}, err
+		} else {
+			return ctrl.Result{}, adminErr
+		}
 	}
 
 	// Add finalizer for this CR
