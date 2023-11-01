@@ -10,7 +10,7 @@ require (
 	github.com/onsi/ginkgo/v2 v2.13.0
 	github.com/onsi/gomega v1.29.0
 	github.com/testcontainers/testcontainers-go v0.26.0
-	github.com/testcontainers/testcontainers-go/modules/mysql v0.25.0
+	github.com/testcontainers/testcontainers-go/modules/mysql v0.26.0
 	go.uber.org/zap v1.26.0
 	gorm.io/driver/mysql v1.5.1
 	gorm.io/gorm v1.25.4
