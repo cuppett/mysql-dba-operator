@@ -35,6 +35,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	metricsServer "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	mysqlv1alpha1 "github.com/cuppett/mysql-dba-operator/api/v1alpha1"
 	"github.com/cuppett/mysql-dba-operator/controllers"
@@ -59,8 +60,10 @@ func main() {
 	var probeAddr string
 	var connectionCache = make(map[types.UID]*orm.ConnectionDefinition)
 	var enableHTTP2 bool
+	var secureMetrics bool
 
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
+	flag.BoolVar(&secureMetrics, "metrics-secure", secureMetrics, "If the metrics endpoint should be served securely.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
@@ -85,12 +88,17 @@ func main() {
 	webhookServerOptions := webhook.Options{
 		TLSOpts: []func(config *tls.Config){disableHTTP2},
 	}
-
 	webhookServer := webhook.NewServer(webhookServerOptions)
+
+	metricsOptions := metricsServer.Options{
+		BindAddress:   metricsAddr,
+		SecureServing: secureMetrics,
+		TLSOpts:       []func(*tls.Config){disableHTTP2},
+	}
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
-		MetricsBindAddress:     metricsAddr,
+		Metrics:                metricsOptions,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "c5e62347.cuppett.dev",

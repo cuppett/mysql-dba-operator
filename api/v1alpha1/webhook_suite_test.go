@@ -44,6 +44,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	metricsServer "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"github.com/testcontainers/testcontainers-go"
 	. "github.com/testcontainers/testcontainers-go/modules/mysql"
@@ -115,11 +116,17 @@ var _ = BeforeSuite(func() {
 	}
 	webhookServer := webhook.NewServer(webhookInstallOptions)
 
+	metricsOptions := metricsServer.Options{
+		BindAddress:   "0",
+		SecureServing: false,
+		TLSOpts:       []func(*tls.Config){},
+	}
+
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
-		Scheme:             scheme,
-		WebhookServer:      webhookServer,
-		LeaderElection:     false,
-		MetricsBindAddress: "0",
+		Scheme:         scheme,
+		WebhookServer:  webhookServer,
+		LeaderElection: false,
+		Metrics:        metricsOptions,
 	})
 	Expect(err).NotTo(HaveOccurred())
 

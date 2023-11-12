@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"crypto/tls"
 	"github.com/cuppett/mysql-dba-operator/orm"
 	"github.com/docker/docker/api/types/container"
 	"github.com/testcontainers/testcontainers-go"
@@ -40,6 +41,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	metricsServer "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	mysqlv1alpha1 "github.com/cuppett/mysql-dba-operator/api/v1alpha1"
 	// +kubebuilder:scaffold:imports
@@ -101,11 +103,17 @@ var _ = BeforeSuite(func() {
 	}
 	webhookServer := webhook.NewServer(webhookInstallOptions)
 
+	metricsOptions := metricsServer.Options{
+		BindAddress:   "0",
+		SecureServing: false,
+		TLSOpts:       []func(*tls.Config){},
+	}
+
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
-		Scheme:             scheme.Scheme,
-		WebhookServer:      webhookServer,
-		LeaderElection:     false,
-		MetricsBindAddress: "0",
+		Scheme:         scheme.Scheme,
+		WebhookServer:  webhookServer,
+		LeaderElection: false,
+		Metrics:        metricsOptions,
 	})
 	Expect(err).ToNot(HaveOccurred())
 
