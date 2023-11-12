@@ -119,7 +119,7 @@ var _ = BeforeSuite(func() {
 	metricsOptions := metricsServer.Options{
 		BindAddress:   "0",
 		SecureServing: false,
-		TLSOpts:       []func(*tls.Config){},
+		TLSOpts:       []func(*tls.Config){disableHTTP2},
 	}
 
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
