@@ -19,11 +19,13 @@ package v1alpha1
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"github.com/cuppett/mysql-dba-operator/orm"
 	"github.com/go-sql-driver/mysql"
 	gormmysql "gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"log"
@@ -117,6 +119,39 @@ type AdminConnectionList struct {
 
 func init() {
 	SchemeBuilder.Register(&AdminConnection{}, &AdminConnectionList{})
+}
+
+func GetAdminConnection(ctx context.Context, client client.Client, namespace string, adminConnectionRef AdminConnectionRef) (*AdminConnection, error) {
+	adminConnection := &AdminConnection{}
+
+	// Determining namespace
+	adminNamespace := namespace
+	if adminConnectionRef.Namespace != "" {
+		adminNamespace = adminConnectionRef.Namespace
+	}
+	adminConnectionNamespacedName := types.NamespacedName{
+		Namespace: adminNamespace,
+		Name:      adminConnectionRef.Name,
+	}
+
+	// Fetching the admin connection
+	err := client.Get(ctx, adminConnectionNamespacedName, adminConnection)
+	if err != nil {
+		adminConnection = nil
+		if errors.IsNotFound(err) {
+			// Could have been deleted, or it just never was there.
+			err = nil
+		}
+	}
+
+	// Check this is an allowed admin connection. If not, clean that up
+	if err == nil && adminConnection != nil && !adminConnection.AllowedNamespace(namespace) {
+		// Namespace not permitted for this admin connection
+		err = fmt.Errorf("namespace not permitted by AdminConnection for this DatabaseUser")
+		adminConnection = nil
+	}
+
+	return adminConnection, err
 }
 
 func (in *AdminConnection) getDbConfig(ctx context.Context, client client.Client) (mysql.Config, error) {
