@@ -168,4 +168,4 @@ make test
 ### Lineage
 
 Operator originally built using [Operator SDK 1.3.0](https://v1-3-x.sdk.operatorframework.io/)<br />
-Operator currently built using [Operator SDK 1.29.0](https://v1-29-x.sdk.operatorframework.io/)
+Operator currently built using [Operator SDK 1.32.0](https://v1-29-x.sdk.operatorframework.io/)
