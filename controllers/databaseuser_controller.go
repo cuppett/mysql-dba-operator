@@ -27,6 +27,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"reflect"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"strings"
 	"time"
 
@@ -562,10 +564,43 @@ func (r *DatabaseUserReconciler) finalizeUser(loop *UserLoopContext) error {
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *DatabaseUserReconciler) SetupWithManager(mgr ctrl.Manager) error {
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&mysqlv1alpha1.DatabaseUser{}).
 		Owns(&v1.Secret{}).
+		Watches(&mysqlv1alpha1.Database{}, handler.EnqueueRequestsFromMapFunc(
+			func(ctx context.Context, a client.Object) []reconcile.Request {
+				return r.findObjectsForDatabaseUser(ctx, a.(*mysqlv1alpha1.Database))
+			},
+		)).
 		Complete(r)
+}
+
+func (r *DatabaseUserReconciler) findObjectsForDatabaseUser(ctx context.Context, database *mysqlv1alpha1.Database) []reconcile.Request {
+
+	// List all DatabaseUser objects in the same namespace
+	databaseUserList := &mysqlv1alpha1.DatabaseUserList{}
+	err := r.Client.List(ctx, databaseUserList, &client.ListOptions{Namespace: database.GetNamespace()})
+	if err != nil {
+		// handle error, perhaps log it
+		return nil
+	}
+
+	// Prepare a list of reconcile requests
+	var requests []reconcile.Request
+	for _, dbUser := range databaseUserList.Items {
+		// Check if this DatabaseUser references the Database
+		for _, dbPerm := range dbUser.Spec.DatabaseList {
+			if dbPerm.Name == database.Name {
+				requests = append(requests, reconcile.Request{
+					NamespacedName: client.ObjectKeyFromObject(&dbUser),
+				})
+				break
+			}
+		}
+	}
+
+	return requests
 }
 
 // Contains tells whether a contains x.
