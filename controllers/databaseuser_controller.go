@@ -286,6 +286,7 @@ func (r *DatabaseUserReconciler) userCreate(ctx context.Context, loop *UserLoopC
 	r.Log.Info("Successfully created user", "Host", loop.adminConnection.Spec.Host,
 		"Name", loop.instance.Status.Username)
 
+	loop.instance.Status.Grants = make([]string, 0)
 	_, err = r.grant(ctx, loop)
 
 	managedUser := orm.ManagedUser{
@@ -488,11 +489,11 @@ func (r *DatabaseUserReconciler) grant(ctx context.Context, loop *UserLoopContex
 			if len(permission.Grants) == 0 {
 				grantQuery += "ALL"
 			} else {
-				for i, indivPermission := range permission.Grants {
+				for i, individualPermission := range permission.Grants {
 					if i > 0 {
 						grantQuery += ", "
 					}
-					grantQuery += strings.ToUpper(indivPermission)
+					grantQuery += strings.ToUpper(individualPermission)
 				}
 			}
 			grantQuery += " ON `" + database.Status.Name + "`.* TO '" + mysqlv1alpha1.Escape(loop.instance.Status.Username) + "'"
