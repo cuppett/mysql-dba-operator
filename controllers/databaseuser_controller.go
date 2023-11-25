@@ -590,13 +590,18 @@ func (r *DatabaseUserReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&v1.Secret{}).
 		Watches(&mysqlv1alpha1.Database{}, handler.EnqueueRequestsFromMapFunc(
 			func(ctx context.Context, a client.Object) []reconcile.Request {
-				return r.findObjectsForDatabaseUser(ctx, a.(*mysqlv1alpha1.Database))
+				return r.findObjectsForDatabase(ctx, a.(*mysqlv1alpha1.Database))
+			},
+		)).
+		Watches(&mysqlv1alpha1.AdminConnection{}, handler.EnqueueRequestsFromMapFunc(
+			func(ctx context.Context, a client.Object) []reconcile.Request {
+				return r.findObjectsForAdminConnection(ctx, a.(*mysqlv1alpha1.AdminConnection))
 			},
 		)).
 		Complete(r)
 }
 
-func (r *DatabaseUserReconciler) findObjectsForDatabaseUser(ctx context.Context, database *mysqlv1alpha1.Database) []reconcile.Request {
+func (r *DatabaseUserReconciler) findObjectsForDatabase(ctx context.Context, database *mysqlv1alpha1.Database) []reconcile.Request {
 
 	// List all DatabaseUser objects in the same namespace
 	databaseUserList := &mysqlv1alpha1.DatabaseUserList{}
@@ -617,6 +622,30 @@ func (r *DatabaseUserReconciler) findObjectsForDatabaseUser(ctx context.Context,
 				})
 				break
 			}
+		}
+	}
+
+	return requests
+}
+
+func (r *DatabaseUserReconciler) findObjectsForAdminConnection(ctx context.Context, adminConnection *mysqlv1alpha1.AdminConnection) []reconcile.Request {
+
+	// List all DatabaseUser objects in the same namespace
+	databaseUserList := &mysqlv1alpha1.DatabaseUserList{}
+	err := r.Client.List(ctx, databaseUserList, &client.ListOptions{})
+	if err != nil {
+		// handle error, perhaps log it
+		return nil
+	}
+
+	// Prepare a list of reconcile requests
+	var requests []reconcile.Request
+	for _, dbUser := range databaseUserList.Items {
+		if dbUser.Spec.AdminConnection.Name == adminConnection.Name &&
+			dbUser.Spec.AdminConnection.Namespace == adminConnection.Namespace {
+			requests = append(requests, reconcile.Request{
+				NamespacedName: client.ObjectKeyFromObject(&dbUser),
+			})
 		}
 	}
 

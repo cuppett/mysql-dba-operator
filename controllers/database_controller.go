@@ -31,6 +31,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"time"
 )
 
@@ -291,5 +293,34 @@ func (r *DatabaseReconciler) finalizeDatabase(loop *DatabaseLoopContext) error {
 func (r *DatabaseReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&mysqlv1alpha1.Database{}).
+		Watches(&mysqlv1alpha1.AdminConnection{}, handler.EnqueueRequestsFromMapFunc(
+			func(ctx context.Context, a client.Object) []reconcile.Request {
+				return r.findObjectsForAdminConnection(ctx, a.(*mysqlv1alpha1.AdminConnection))
+			},
+		)).
 		Complete(r)
+}
+
+func (r *DatabaseReconciler) findObjectsForAdminConnection(ctx context.Context, adminConnection *mysqlv1alpha1.AdminConnection) []reconcile.Request {
+
+	// List all DatabaseUser objects in the same namespace
+	databaseList := &mysqlv1alpha1.DatabaseList{}
+	err := r.Client.List(ctx, databaseList, &client.ListOptions{})
+	if err != nil {
+		// handle error, perhaps log it
+		return nil
+	}
+
+	// Prepare a list of reconcile requests
+	var requests []reconcile.Request
+	for _, db := range databaseList.Items {
+		if db.Spec.AdminConnection.Name == adminConnection.Name &&
+			db.Spec.AdminConnection.Namespace == adminConnection.Namespace {
+			requests = append(requests, reconcile.Request{
+				NamespacedName: client.ObjectKeyFromObject(&db),
+			})
+		}
+	}
+
+	return requests
 }
