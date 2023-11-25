@@ -271,7 +271,7 @@ func (r *DatabaseUserReconciler) userCreate(ctx context.Context, loop *UserLoopC
 	createQuery := "CREATE USER '" + mysqlv1alpha1.Escape(loop.instance.Status.Username) + "'"
 	params := make([]interface{}, 0)
 
-	userDetails, err := r.userDetailString(ctx, loop)
+	userDetails, err := r.userDetailString(ctx, loop, true)
 	if err != nil {
 		return err
 	}
@@ -338,7 +338,7 @@ func (r *DatabaseUserReconciler) userUpdate(ctx context.Context, loop *UserLoopC
 	}
 
 	// Determining if we need to update the user wrt their authentication
-	userDetails, err := r.userDetailString(ctx, loop)
+	userDetails, err := r.userDetailString(ctx, loop, false)
 	if err != nil {
 		return false, err
 	}
@@ -372,7 +372,7 @@ func (r *DatabaseUserReconciler) userUpdate(ctx context.Context, loop *UserLoopC
 	return permsDiff, err
 }
 
-func (r *DatabaseUserReconciler) userDetailString(ctx context.Context, loop *UserLoopContext) (string, error) {
+func (r *DatabaseUserReconciler) userDetailString(ctx context.Context, loop *UserLoopContext, createUser bool) (string, error) {
 
 	var err error
 	queryFragment := ""
@@ -408,7 +408,7 @@ func (r *DatabaseUserReconciler) userDetailString(ctx context.Context, loop *Use
 		}
 		authPlugin = mysqlv1alpha1.Escape(authPlugin)
 
-		if passwordUpdated || pluginsDiff {
+		if passwordUpdated || pluginsDiff || createUser {
 			if authPlugin != "" {
 				queryFragment += " IDENTIFIED WITH '" + authPlugin + "'"
 				if authString != "" {
