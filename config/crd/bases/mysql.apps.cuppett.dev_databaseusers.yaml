@@ -108,8 +108,6 @@ spec:
                     type: boolean
                 type: object
               username:
-                description: 'TODO: Block or allow the rename of a user (currently
-                  would just CREATE new one if changed)'
                 maxLength: 32
                 minLength: 1
                 type: string

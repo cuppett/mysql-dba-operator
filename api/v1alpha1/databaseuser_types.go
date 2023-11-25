@@ -24,7 +24,6 @@ import (
 // DatabaseUserSpec defines the desired state of DatabaseUser
 type DatabaseUserSpec struct {
 	AdminConnection AdminConnectionRef `json:"adminConnection"`
-	// TODO: Block or allow the rename of a user (currently would just CREATE new one if changed)
 	// +kubebuilder:validation:MaxLength:=32
 	// +kubebuilder:validation:MinLength:=1
 	Username string `json:"username"`

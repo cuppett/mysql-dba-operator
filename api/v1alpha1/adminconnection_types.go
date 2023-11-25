@@ -344,18 +344,25 @@ func (in *AdminConnection) DatabaseMine(gormDB *gorm.DB, database *Database) boo
 func (in *AdminConnection) UserMine(gormDB *gorm.DB, user *DatabaseUser) bool {
 
 	var managedUser orm.ManagedUser
-
-	// If it doesn't exist, go ahead and take it!
-	if orm.UserExists(gormDB, user.Spec.Username) == nil {
-		return true
+	names := make([]string, 0, 2)
+	names = append(names, user.Spec.Username)
+	if user.Spec.Username != user.Status.Username && user.Status.Username != "" {
+		names = append(names, user.Status.Username)
 	}
 
-	// If it does exist, let's check the triple after fetching by UID
-	gormDB.Limit(1).Find(&managedUser, "uuid = ?", string(user.UID))
-	if managedUser.Username == user.Spec.Username &&
-		managedUser.Name == user.Name &&
-		managedUser.Namespace == user.Namespace {
-		return true
+	for _, name := range names {
+		// If it doesn't exist, go ahead and take it!
+		if orm.UserExists(gormDB, name) == nil {
+			continue
+		}
+
+		// If it does exist, let's check the triple after fetching by UID
+		gormDB.Limit(1).Find(&managedUser, "uuid = ?", string(user.UID))
+		if managedUser.Username != name ||
+			managedUser.Name != user.Name ||
+			managedUser.Namespace != user.Namespace {
+			return false
+		}
 	}
-	return false
+	return true
 }
