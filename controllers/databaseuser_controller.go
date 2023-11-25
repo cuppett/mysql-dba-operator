@@ -161,7 +161,7 @@ func (r *DatabaseUserReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, err
 	}
 
-	if loop.instance.Status.Username == "" {
+	if loop.instance.Status.Username == "" && loop.adminConnection.UserMine(loop.db, loop.instance) {
 		// Ensuring old/new username is always set.
 		loop.instance.Status.Username = loop.instance.Spec.Username
 		err = r.Status().Update(ctx, loop.instance)
@@ -185,7 +185,7 @@ func (r *DatabaseUserReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			r.Log.Error(err, "Failure adding the finalizer.", "Name",
 				loop.instance.Name, "Namespace", loop.instance.Namespace)
 		}
-	} else {
+	} else if loop.instance.Status.Username != "" {
 		exists, err := r.userExists(&loop)
 
 		if !exists {
@@ -198,6 +198,8 @@ func (r *DatabaseUserReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			if updated {
 				loop.instance.Status.SyncTime = metav1.NewTime(time.Now())
 			}
+		} else {
+			loop.instance.Status.Message = "Ownership failed. Unable to update user."
 		}
 
 		if err != nil {
@@ -205,6 +207,9 @@ func (r *DatabaseUserReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		} else {
 			err = r.Status().Update(ctx, loop.instance)
 		}
+	} else if loop.instance.Status.Username == "" {
+		loop.instance.Status.Message = "Invalid username specified."
+		err = r.Status().Update(ctx, loop.instance)
 	}
 	return ctrl.Result{}, err
 }
@@ -245,7 +250,7 @@ func (r *DatabaseUserReconciler) secretOwnershipOk(loop *UserLoopContext) bool {
 
 func (r *DatabaseUserReconciler) userExists(loop *UserLoopContext) (bool, error) {
 
-	user := orm.UserExists(loop.db, loop.instance.Spec.Username)
+	user := orm.UserExists(loop.db, loop.instance.Status.Username)
 
 	if user == nil {
 		r.Log.Info("User does not exist or failed retrieving", "Host", loop.adminConnection.Spec.Host,
@@ -314,6 +319,21 @@ func (r *DatabaseUserReconciler) userUpdate(ctx context.Context, loop *UserLoopC
 			"Old", loop.instance.Status.Username, "New", loop.instance.Spec.Username)
 		loop.instance.Status.Username = loop.instance.Spec.Username
 		loop.instance.Status.Message = "User renamed"
+
+		managedUser := orm.ManagedUser{
+			Uuid:      string(loop.instance.UID),
+			Namespace: loop.instance.Namespace,
+			Name:      loop.instance.Name,
+			Username:  loop.instance.Spec.Username,
+		}
+
+		tx := loop.db.Updates(&managedUser)
+		if tx.Error != nil {
+			r.Log.Error(tx.Error, "Failed to update managed user record.", "Host", loop.adminConnection.Spec.Host, "Name",
+				loop.instance.Spec.Username)
+		}
+		tx.Commit()
+
 		return true, nil
 	}
 
