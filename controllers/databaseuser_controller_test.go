@@ -94,13 +94,15 @@ var _ = Describe("DatabaseUser", func() {
 				return userObject.Status.Message
 			}).WithContext(ctx).Should(Equal("Created user"))
 
-			// Fetch a fresh DatabaseUser
-			err = k8sClient.Get(ctx, databaseNamespacedName, databaseUser)
-			Expect(err).ToNot(HaveOccurred())
-
-			databaseUser.Spec.Username = "test-user-renamed"
-			err = k8sClient.Update(ctx, databaseUser)
-			Expect(err).ToNot(HaveOccurred())
+			// Continue to do this until we stop getting 409.
+			Eventually(func() error {
+				// Fetch a fresh DatabaseUser
+				err = k8sClient.Get(ctx, databaseNamespacedName, databaseUser)
+				Expect(err).ToNot(HaveOccurred())
+				databaseUser.Spec.Username = "test-user-renamed"
+				err = k8sClient.Update(ctx, databaseUser)
+				return err
+			}).WithContext(ctx).Should(BeNil())
 
 			Eventually(func() string {
 				userObject := &DatabaseUser{}
@@ -149,14 +151,15 @@ var _ = Describe("DatabaseUser", func() {
 				return userObject.Status.Message
 			}).WithContext(ctx).Should(Equal("Created user"))
 
-			// Fetch a fresh DatabaseUser
-			err = k8sClient.Get(ctx, databaseNamespacedName, databaseUser)
-			Expect(err).ToNot(HaveOccurred())
-
-			// Update the username field
-			databaseUser.Spec.Username = "existing_user"
-			err = k8sClient.Update(ctx, databaseUser)
-			Expect(err).ToNot(HaveOccurred())
+			// Continue to do this until we stop getting 409.
+			Eventually(func() error {
+				// Fetch a fresh DatabaseUser
+				err = k8sClient.Get(ctx, databaseNamespacedName, databaseUser)
+				Expect(err).ToNot(HaveOccurred())
+				databaseUser.Spec.Username = "existing_user"
+				err = k8sClient.Update(ctx, databaseUser)
+				return err
+			}).WithContext(ctx).Should(BeNil())
 
 			Eventually(func() string {
 				userObject := &DatabaseUser{}
@@ -206,14 +209,15 @@ var _ = Describe("DatabaseUser", func() {
 				return userObject.Status.Message
 			}).WithContext(ctx).Should(Equal("Invalid username specified."))
 
-			// Fetch a fresh DatabaseUser
-			err = k8sClient.Get(ctx, databaseNamespacedName, databaseUser)
-			Expect(err).ToNot(HaveOccurred())
-
-			// Update the username field
-			databaseUser.Spec.Username = "switch-good-user"
-			err = k8sClient.Update(ctx, databaseUser)
-			Expect(err).ToNot(HaveOccurred())
+			// Continue to do this until we stop getting 409.
+			Eventually(func() error {
+				// Fetch a fresh DatabaseUser
+				err = k8sClient.Get(ctx, databaseNamespacedName, databaseUser)
+				Expect(err).ToNot(HaveOccurred())
+				databaseUser.Spec.Username = "switch-good-user"
+				err = k8sClient.Update(ctx, databaseUser)
+				return err
+			}).WithContext(ctx).Should(BeNil())
 
 			Eventually(func() string {
 				userObject := &DatabaseUser{}
