@@ -95,7 +95,6 @@ var _ = Describe("DatabaseUser", func() {
 			}).WithContext(ctx).Should(Equal("Created user"))
 
 			// Fetch a fresh DatabaseUser
-			databaseUser = &DatabaseUser{}
 			err = k8sClient.Get(ctx, databaseNamespacedName, databaseUser)
 			Expect(err).ToNot(HaveOccurred())
 
@@ -151,7 +150,6 @@ var _ = Describe("DatabaseUser", func() {
 			}).WithContext(ctx).Should(Equal("Created user"))
 
 			// Fetch a fresh DatabaseUser
-			databaseUser = &DatabaseUser{}
 			err = k8sClient.Get(ctx, databaseNamespacedName, databaseUser)
 			Expect(err).ToNot(HaveOccurred())
 
@@ -209,7 +207,6 @@ var _ = Describe("DatabaseUser", func() {
 			}).WithContext(ctx).Should(Equal("Invalid username specified."))
 
 			// Fetch a fresh DatabaseUser
-			databaseUser = &DatabaseUser{}
 			err = k8sClient.Get(ctx, databaseNamespacedName, databaseUser)
 			Expect(err).ToNot(HaveOccurred())
 
@@ -226,7 +223,6 @@ var _ = Describe("DatabaseUser", func() {
 			}).WithContext(ctx).Should(Equal("Created user"))
 
 			// Fetching again and checking the actual username.
-			databaseUser = &DatabaseUser{}
 			err = k8sClient.Get(ctx, databaseNamespacedName, databaseUser)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(databaseUser.Status.Username).To(Equal("switch-good-user"))
