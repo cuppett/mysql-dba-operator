@@ -44,6 +44,14 @@ var _ = Describe("DatabaseUser", func() {
 				Expect(err).ToNot(HaveOccurred())
 				return userObject.Status.Message
 			}).WithContext(ctx).Should(Equal("Created user"))
+
+			// Getting database connection
+			cache := make(map[types.UID]*orm.ConnectionDefinition)
+			gormDB, err := ServerAdminConnection.GetDatabaseConnection(ctx, k8sClient, cache)
+			Expect(err).ToNot(HaveOccurred())
+
+			Expect(ServerAdminConnection.UserMine(gormDB, databaseUser)).To(BeTrue())
+
 		}, NodeTimeout(time.Second*30))
 
 		It("User Removed Path", func(ctx SpecContext) {
@@ -113,6 +121,8 @@ var _ = Describe("DatabaseUser", func() {
 			err = k8sClient.Get(ctx, databaseNamespacedName, databaseUser)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(databaseUser.Status.Message).To(Equal("Created user"))
+
+			Expect(ServerAdminConnection.UserMine(gormDB, databaseUser)).To(BeTrue())
 
 		}, NodeTimeout(time.Second*30))
 
@@ -235,8 +245,9 @@ var _ = Describe("DatabaseUser", func() {
 				return len(databaseUser.Status.Grants)
 			}).WithContext(ctx).Should(Equal(1))
 
-		}, NodeTimeout(time.Second*30))
+			Expect(ServerAdminConnection.UserMine(gormDB, databaseUser)).To(BeTrue())
 
+		}, NodeTimeout(time.Second*30))
 	})
 
 	Describe("Rename Scenario", func() {
