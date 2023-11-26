@@ -69,6 +69,16 @@ func (MySqlUser) TableName() string {
 	return "mysql.user"
 }
 
+type MySqlDb struct {
+	Host string `gorm:"primaryKey;size:255;column:Host"`
+	User string `gorm:"primaryKey;size:32;column:User"`
+	Db   string `gorm:"size:64;column:Db"`
+}
+
+func (MySqlDb) TableName() string {
+	return "mysql.db"
+}
+
 func DatabaseExists(gormDB *gorm.DB, name string) *DatabaseSchema {
 	var schema DatabaseSchema
 	gormDB.First(&schema, "SCHEMA_NAME = ?", name)

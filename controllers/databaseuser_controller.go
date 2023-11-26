@@ -328,7 +328,7 @@ func (r *DatabaseUserReconciler) userUpdate(ctx context.Context, loop *UserLoopC
 			Username:  loop.instance.Spec.Username,
 		}
 
-		tx := loop.db.Updates(&managedUser)
+		tx := loop.db.Save(&managedUser)
 		if tx.Error != nil {
 			r.Log.Error(tx.Error, "Failed to update managed user record.", "Host", loop.adminConnection.Spec.Host, "Name",
 				loop.instance.Spec.Username)
