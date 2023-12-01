@@ -7,7 +7,7 @@ require (
 	github.com/go-logr/logr v1.3.0
 	github.com/go-sql-driver/mysql v1.7.1
 	github.com/google/uuid v1.4.0
-	github.com/onsi/ginkgo/v2 v2.13.1
+	github.com/onsi/ginkgo/v2 v2.13.2
 	github.com/onsi/gomega v1.30.0
 	github.com/testcontainers/testcontainers-go v0.26.0
 	github.com/testcontainers/testcontainers-go/modules/mysql v0.26.0
