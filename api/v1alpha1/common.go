@@ -23,7 +23,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"math/big"
-	mrand "math/rand"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"strings"
 )
@@ -148,9 +147,12 @@ func GeneratePassword(passwordLength, minSpecialChar, minNum, minUpperCase int) 
 		random, _ := rand.Int(rand.Reader, big.NewInt(int64(len(allCharSet))))
 		password.WriteString(string(allCharSet[random.Int64()]))
 	}
+
 	inRune := []rune(password.String())
-	mrand.Shuffle(len(inRune), func(i, j int) {
-		inRune[i], inRune[j] = inRune[j], inRune[i]
-	})
+	// Reorder the password randomly
+	for i := range inRune {
+		j, _ := rand.Int(rand.Reader, big.NewInt(int64(len(inRune))))
+		inRune[i], inRune[j.Int64()] = inRune[j.Int64()], inRune[i]
+	}
 	return string(inRune)
 }
