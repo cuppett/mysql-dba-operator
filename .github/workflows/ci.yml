@@ -25,9 +25,9 @@ jobs:
         - 'mariadb:10.6'
         - 'mysql:8'
         kubernetes:
-        - '1.26'
         - '1.27'
         - '1.28'
+        - '1.29'
 
     name: make test ${{ matrix.images }} - K8s v${{ matrix.kubernetes }}
 
