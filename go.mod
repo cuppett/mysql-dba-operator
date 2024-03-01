@@ -3,7 +3,7 @@ module github.com/cuppett/mysql-dba-operator
 go 1.21
 
 require (
-	github.com/docker/docker v25.0.2+incompatible
+	github.com/docker/docker v25.0.3+incompatible
 	github.com/go-logr/logr v1.4.1
 	github.com/go-sql-driver/mysql v1.7.1
 	github.com/google/uuid v1.6.0
