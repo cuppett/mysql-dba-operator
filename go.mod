@@ -9,8 +9,8 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/onsi/ginkgo/v2 v2.15.0
 	github.com/onsi/gomega v1.32.0
-	github.com/testcontainers/testcontainers-go v0.28.0
-	github.com/testcontainers/testcontainers-go/modules/mysql v0.28.0
+	github.com/testcontainers/testcontainers-go v0.29.1
+	github.com/testcontainers/testcontainers-go/modules/mysql v0.29.1
 	go.uber.org/zap v1.27.0
 	gorm.io/driver/mysql v1.5.6
 	gorm.io/gorm v1.25.7
@@ -72,7 +72,7 @@ require (
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
-	github.com/opencontainers/image-spec v1.1.0-rc5 // indirect
+	github.com/opencontainers/image-spec v1.1.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/power-devops/perfstat v0.0.0-20210106213030-5aafc221ea8c // indirect
 	github.com/prometheus/client_golang v1.18.0 // indirect
@@ -92,7 +92,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.19.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/exp v0.0.0-20230510235704-dd950f8aeaea // indirect
-	golang.org/x/mod v0.14.0 // indirect
+	golang.org/x/mod v0.16.0 // indirect
 	golang.org/x/net v0.20.0 // indirect
 	golang.org/x/oauth2 v0.12.0 // indirect
 	golang.org/x/sys v0.16.0 // indirect
