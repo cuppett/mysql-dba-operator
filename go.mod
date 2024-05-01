@@ -3,7 +3,7 @@ module github.com/cuppett/mysql-dba-operator
 go 1.21
 
 require (
-	github.com/docker/docker v25.0.5+incompatible
+	github.com/docker/docker v26.1.1+incompatible
 	github.com/go-logr/logr v1.4.1
 	github.com/go-sql-driver/mysql v1.8.1
 	github.com/google/uuid v1.6.0
@@ -64,6 +64,7 @@ require (
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/matttproud/golang_protobuf_extensions/v2 v2.0.0 // indirect
+	github.com/moby/docker-image-spec v1.3.1 // indirect
 	github.com/moby/patternmatcher v0.6.0 // indirect
 	github.com/moby/sys/sequential v0.5.0 // indirect
 	github.com/moby/sys/user v0.1.0 // indirect
