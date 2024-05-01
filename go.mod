@@ -13,7 +13,7 @@ require (
 	github.com/testcontainers/testcontainers-go/modules/mysql v0.30.0
 	go.uber.org/zap v1.27.0
 	gorm.io/driver/mysql v1.5.6
-	gorm.io/gorm v1.25.9
+	gorm.io/gorm v1.25.10
 	k8s.io/api v0.29.3
 	k8s.io/apimachinery v0.29.3
 	k8s.io/client-go v0.29.3
