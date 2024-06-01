@@ -18,7 +18,7 @@ require (
 	gorm.io/gorm v1.25.10
 	k8s.io/api v0.30.1
 	k8s.io/apimachinery v0.30.1
-	k8s.io/client-go v0.30.0
+	k8s.io/client-go v0.30.1
 	sigs.k8s.io/controller-runtime v0.18.1
 )
 
