@@ -5,7 +5,7 @@ go 1.22.0
 toolchain go1.22.2
 
 require (
-	github.com/docker/docker v26.1.3+incompatible
+	github.com/docker/docker v27.0.3+incompatible
 	github.com/go-logr/logr v1.4.2
 	github.com/go-sql-driver/mysql v1.8.1
 	github.com/google/uuid v1.6.0
