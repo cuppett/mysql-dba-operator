@@ -17,7 +17,7 @@ require (
 	gorm.io/driver/mysql v1.5.7
 	gorm.io/gorm v1.25.10
 	k8s.io/api v0.30.2
-	k8s.io/apimachinery v0.30.2
+	k8s.io/apimachinery v0.30.3
 	k8s.io/client-go v0.30.2
 	sigs.k8s.io/controller-runtime v0.18.1
 )
