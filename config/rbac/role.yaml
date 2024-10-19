@@ -20,8 +20,6 @@ rules:
   - mysql.apps.cuppett.dev
   resources:
   - adminconnections
-  - databases
-  - databaseusers
   verbs:
   - create
   - delete
@@ -34,15 +32,63 @@ rules:
   - mysql.apps.cuppett.dev
   resources:
   - adminconnections/finalizers
-  - databases/finalizers
-  - databaseusers/finalizers
   verbs:
   - update
 - apiGroups:
   - mysql.apps.cuppett.dev
   resources:
   - adminconnections/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - mysql.apps.cuppett.dev
+  resources:
+  - databases
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - mysql.apps.cuppett.dev
+  resources:
+  - databases/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - mysql.apps.cuppett.dev
+  resources:
   - databases/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - mysql.apps.cuppett.dev
+  resources:
+  - databaseusers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - mysql.apps.cuppett.dev
+  resources:
+  - databaseusers/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - mysql.apps.cuppett.dev
+  resources:
   - databaseusers/status
   verbs:
   - get
