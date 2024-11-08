@@ -118,12 +118,6 @@ var _ = BeforeSuite(func() {
 	Expect(err).ToNot(HaveOccurred())
 
 	var connectionCache = make(map[types.UID]*orm.ConnectionDefinition)
-	err = (&DatabaseReconciler{
-		Client:      mgr.GetClient(),
-		Scheme:      mgr.GetScheme(),
-		Connections: connectionCache,
-	}).SetupWithManager(mgr)
-	Expect(err).ToNot(HaveOccurred())
 
 	err = (&mysqlv1alpha1.Database{}).SetupWebhookWithManager(mgr)
 	Expect(err).ToNot(HaveOccurred())
@@ -160,7 +154,7 @@ var _ = BeforeSuite(func() {
 		image = "ghcr.io/cuppett/mariadb:11.0"
 	}
 
-	mysqlContainer, err = RunContainer(ctx, testcontainers.WithImage(image),
+	mysqlContainer, err = Run(ctx, image,
 		WithUsername("root"), WithPassword(""),
 		testcontainers.WithConfigModifier(func(config *container.Config) {
 			config.Env = []string{"MYSQL_ALLOW_EMPTY_PASSWORD=true"}
