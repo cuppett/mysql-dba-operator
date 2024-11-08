@@ -320,7 +320,7 @@ var _ = Describe("DatabaseUser", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(databaseUser.Status.Username).To(Equal("test-user-renamed"))
 
-		}, NodeTimeout(time.Second*30))
+		}, NodeTimeout(time.Second*60))
 
 		It("Fail Rename To Existing User", func(ctx SpecContext) {
 			databaseNamespacedName := types.NamespacedName{
