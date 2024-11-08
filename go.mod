@@ -1,8 +1,8 @@
 module github.com/cuppett/mysql-dba-operator
 
-go 1.22.0
+go 1.23.0
 
-toolchain go1.22.2
+toolchain go1.23.2
 
 require (
 	github.com/docker/docker v27.3.1+incompatible

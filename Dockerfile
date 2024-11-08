@@ -1,5 +1,5 @@
 # Build the manager binary
-FROM ghcr.io/cuppett/golang:1.22 as builder
+FROM ghcr.io/cuppett/golang:1.23 as builder
 
 WORKDIR /workspace
 # Copy the Go Modules manifests
@@ -22,10 +22,10 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -o manager main.go
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
 FROM ghcr.io/cuppett/fedora-minimal:latest
 
-LABEL maintainer "Stephen Cuppett <steve@cuppett.com>" \
-      org.opencontainers.image.title "mysql-dba-operator" \
-      org.opencontainers.image.description "Operator for managing MySQL connections, databases & users" \
-      org.opencontainers.image.source "https://github.com/cuppett/mysql-dba-operator"
+LABEL maintainer="Stephen Cuppett <steve@cuppett.com>" \
+      org.opencontainers.image.title="mysql-dba-operator" \
+      org.opencontainers.image.description="Operator for managing MySQL connections, databases & users" \
+      org.opencontainers.image.source="https://github.com/cuppett/mysql-dba-operator"
 
 WORKDIR /
 COPY --from=builder /workspace/manager .
